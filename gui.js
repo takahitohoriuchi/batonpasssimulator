@@ -14,6 +14,29 @@ export function buildGUI(sim, cameraApi, rebuildGui) {
 	const play = gui.addFolder('Playback')
 	play.add(sim.player, 'speed', 0.1, 1.0, 0.1).name('Speed (x0.1-1.0)')
 
+	// ===== ゲーム設定 =====
+	const gameFolder = gui.addFolder('Game')
+
+	const gameUI = {
+		enabled: sim.game?.enabled ?? true,
+		team: 'D', // A-H
+	}
+
+	gameFolder
+		.add(gameUI, 'enabled')
+		.name('Enable Game')
+		.onChange((v) => {
+			sim.game.enabled = v
+		})
+
+	gameFolder
+		.add(gameUI, 'team', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
+		.name('Player Team')
+		.onChange((t) => {
+			const lane = 'ABCDEFGH'.indexOf(t) + 1
+			sim.game.playerLane = lane
+		})
+
 	// ===== Runner Summon =====
 	const summon = {
 		A: false,
@@ -50,7 +73,7 @@ export function buildGUI(sim, cameraApi, rebuildGui) {
 			}
 			if (segments.length === 0) segments.push('12')
 
-			sim.summon({ lanes, segments })
+			sim.summon({ lanes, segments })			
 
 			// 見失い防止
 			cameraApi.overview()

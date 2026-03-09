@@ -296,5 +296,21 @@ export class TrackView {
 			fill(160, 255, 0)
 			circle(bp.x, bp.y, batonDia)
 		}
+		// 「はい！」表示（ゲームモードのcall後0.5秒）
+		if (sim.game?.enabled) {
+			const now = performance.now();
+			const { P } = sim.game.getPR ? sim.game.getPR() : { P: null };
+
+			if (P && sim.game.haiUntilMs > now) {
+				const p = track.sToXY(P.lane, P.s);
+				push();
+				noStroke();
+				fill(255);
+				textSize(16);
+				textAlign(CENTER, CENTER);
+				text("はい！", p.x, p.y - 0.8); // 少し上
+				pop();
+			}
+		}
 	}
 }

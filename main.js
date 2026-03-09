@@ -78,6 +78,10 @@ function setup() {
 			for (const lane of lanes) sim.goLeg(lane, 2)
 			return
 		}
+		// ★ゲーム入力を渡す（Control / Enter）
+		if (sim.game?.enabled) {
+			sim.game.onKeyDown(e)
+		}		
 	}
 
 }
@@ -93,19 +97,49 @@ function drawHUD() {
 	text(`t = ${sim.t.toFixed(2)} s  |  speed = x${sim.player.speed.toFixed(1)}  |  ${sim.player.paused ? 'PAUSED' : 'PLAY'}`, 14, y)
 	y += 18
 
-	// baton（sはログ用。描画は腕先に出す）
-	text(`baton holder = ${sim.baton.holderId}`, 14, y)
-	y += 18
-
-	for (const r of sim.runners) {
-		const P = sim.track.lapLengthLaneCenter(r.lane)
-		const s = ((r.s % P) + P) % P
-		// text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : d = ${r.dist.toFixed(2)} m`, 14, y)
-		text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : pos = ${r.dist.toFixed(2)} m`, 14, y)
+	if (sim.game?.enabled) {
+		const info = sim.game.getHUD()
+		text(`GAME: lane ${info.lane}  |  pStage=${info.pStage} rStage=${info.rStage} offer=${info.offeringReady}`, 14, y)
 		y += 18
+
+		if (info.P) {
+			text(`P: ${info.P.id}  pos=${info.P.dist?.toFixed(2) ?? '-'}m  phase=${info.P.phase.toFixed(2)} rad`, 14, y)
+			y += 18
+		}
+		if (info.R) {
+			text(`R: ${info.R.id}  pos=${info.R.dist?.toFixed(2) ?? '-'}m  phase=${info.R.phase.toFixed(2)} rad`, 14, y)
+			y += 18
+		}
+	} else {
+		// 旧表示（必要なら）
 	}
+
 	pop()
 }
+// function drawHUD() {
+// 	push()
+// 	resetMatrix()
+// 	noStroke()
+// 	fill(220)
+// 	textSize(14)
+
+// 	let y = 22
+// 	text(`t = ${sim.t.toFixed(2)} s  |  speed = x${sim.player.speed.toFixed(1)}  |  ${sim.player.paused ? 'PAUSED' : 'PLAY'}`, 14, y)
+// 	y += 18
+
+// 	// baton（sはログ用。描画は腕先に出す）
+// 	text(`baton holder = ${sim.baton.holderId}`, 14, y)
+// 	y += 18
+
+// 	for (const r of sim.runners) {
+// 		const P = sim.track.lapLengthLaneCenter(r.lane)
+// 		const s = ((r.s % P) + P) % P
+// 		// text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : d = ${r.dist.toFixed(2)} m`, 14, y)
+// 		text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : pos = ${r.dist.toFixed(2)} m`, 14, y)
+// 		y += 18
+// 	}
+// 	pop()
+// }
 
 function draw() {
 	background(15)

@@ -1,5 +1,6 @@
 import { Runner, Baton } from './entities.js'
 import { InteractionController } from './controller.js'
+import { GameController } from './gameController.js'
 
 export class Simulation {
 	constructor(track) {
@@ -20,6 +21,10 @@ export class Simulation {
 		this.baton = new Baton({ holderId: r1.id, lane: r1.lane, s: r1.s })
 
 		this.controller = new InteractionController(track)
+
+		this.game = new GameController(this)
+		this.game.enabled = true // ゲームモードON
+		this.game.playerLane = 4 // デフォルト主人公
 
 		this.marks = []
 		this.rebuildMarks()
@@ -143,29 +148,7 @@ export class Simulation {
 				)
 			}
 		}
-		// for (const lane of lanes) {
-		// 	for (const leg of Array.from(legs).sort((a, b) => a - b)) {
-		// 		const s0 = leg === 1 ? this.firstLegStartS(lane) : this.zoneStartForLeg(leg)
-
-		// 		// ★ leg1以外は静止
-		// 		const isRunning = leg === 1
-
-		// 		this.runners.push(
-		// 			new Runner({
-		// 				id: `L${lane}-leg${leg}`,
-		// 				lane,
-		// 				leg,
-		// 				s: s0,
-		// 				pitch: 5.0,
-		// 				stride: 2.0,
-		// 				phase: 0.0,
-		// 				l: 0.8,
-		// 				isRunning,
-		// 				dist: 0.0,
-		// 			}),
-		// 		)
-		// 	}
-		// }
+		
 
 		// バトン保持者は最初のleg1（lane最小優先）
 		const holder = this.runners.filter((r) => r.leg === 1).sort((a, b) => a.lane - b.lane)[0]
@@ -178,9 +161,17 @@ export class Simulation {
 			if (r1) r1.go()
 		}
 
+		
 		// 召喚直後は履歴をリセット（コマ戻しが変になるのを防ぐ）
 		// this.history = []
+		// this.pushHistory()		
+
 		// this.pushHistory()
+
+		// ★ここ追加
+		if (this.game) {
+			this.game.reset()
+		}
 	}
 
 	// ★ go()相当：指定laneの指定legを走らせる
@@ -200,24 +191,7 @@ export class Simulation {
 		for (let lane = 1; lane <= this.track.lanes; lane++) {
 			marks.push({ lane, s: this.firstLegStartS(lane), halfLenM: 1.15, color: color(255, 255, 0) })
 		}
-
-		// for (let lane = 1; lane <= this.track.lanes; lane++) {
-		// 	const P = this.track.lapLengthLaneCenter(lane)
-		// 	for (const z of this.zones) {
-		// 		const a = ((z.start % P) + P) % P
-		// 		const b = ((z.end % P) + P) % P
-		// 		marks.push({ lane, s: a, halfLenM: 0.9, color: color(255) })
-		// 		marks.push({ lane, s: b, halfLenM: 0.9, color: color(255) })
-		// 	}
-		// }
-
-		// for (let lane = 1; lane <= this.track.lanes; lane++) {
-		// 	const P = this.track.lapLengthLaneCenter(lane)
-		// 	for (const d of this.track.distMarks) {
-		// 		const s = ((d % P) + P) % P
-		// 		marks.push({ lane, s, halfLenM: 0.75, color: color(160) })
-		// 	}
-		// }
+		
 
 		// (白) バトンゾーン線：各ゾーン3本（80/100/110, 180/200/210, 280/300/310）
 		const zoneLines = [80, 100, 110, 180, 200, 210, 280, 300, 310]
@@ -315,6 +289,14 @@ export class Simulation {
 		this.controller.step(this)
 
 		this.pushHistory()
+
+		// 既存：this.controller.step(this)
+		// ↓ゲームモード中は無効にする
+		if (!this.game?.enabled) {
+		this.controller.step(this);
+		} else {
+		this.game.step();
+		}
 	}
 
 	snapshot() {
