@@ -1,16 +1,5 @@
 export class Runner {
-	constructor({
-		id,
-		lane,
-		leg,
-		s,
-		pitch = 5.0,
-		stride = 2.0,
-		phase = 0.0,
-		l = 0.8,
-		isRunning = true,
-		dist = 0.0, // 0〜400m の走行距離表示用
-	}) {
+	constructor({ id, lane, leg, s, pitch = 5.0, stride = 2.0, phase = 0.0, l = 0.8, isRunning = true, dist = 0.0 }) {
 		this.id = id
 		this.lane = lane
 		this.leg = leg
@@ -18,6 +7,7 @@ export class Runner {
 		this.s = s
 		this.pitch = pitch
 		this.stride = stride
+		this.baseStride = stride
 		this.phase = phase
 		this.l = l
 
@@ -28,10 +18,11 @@ export class Runner {
 		this._is_raised_arm = false
 		this._is_passing = false
 
+		this._is_receive_ready = false
+
 		this.armReachExtra = 0.2
 	}
 
-	// ===== 制御 =====
 	go() {
 		this._is_running = true
 	}
@@ -39,20 +30,36 @@ export class Runner {
 		this._is_running = false
 	}
 
-	// ===== 運動学 =====
 	speed() {
-		return this.pitch * this.stride // m/s
+		return this.pitch * this.stride
 	}
 
 	reach() {
 		return this.l + this.armReachExtra
 	}
 
-	// ===== 位相更新 =====
+	enterReceiveReady() {
+		if (this._is_receive_ready) return
+		this._is_receive_ready = true
+		this._is_raised_arm = true
+		this.phase = -Math.PI / 2 // 1.5π相当
+		this.stride = this.baseStride * 0.9
+	}
+
+	exitReceiveReady() {
+		this._is_receive_ready = false
+		this._is_raised_arm = false
+		this.stride = this.baseStride
+	}
+
 	phaseUpdate(dtBase, playerSpeed) {
+		if (this._is_receive_ready) {
+			this.phase = -Math.PI / 2
+			return
+		}
+
 		const dphi = playerSpeed * this.pitch * Math.PI * dtBase
 
-		// 固定（仕様の近似）：特定位相付近では更新しない
 		const tol = 0.2
 		const near = (a, b) => Math.abs(a - b) < tol
 
@@ -69,7 +76,6 @@ export class Runner {
 
 		this.phase += dphi
 
-		// wrap to [-π, π]
 		while (this.phase > Math.PI) this.phase -= 2 * Math.PI
 		while (this.phase < -Math.PI) this.phase += 2 * Math.PI
 	}
@@ -82,10 +88,6 @@ export class Runner {
 		const v = this.speed()
 		const ds = v * dtBase * playerSpeed
 
-		// 距離メータ（0→400、400で0に戻す）
-		// this.dist = (this.dist + ds) % this.raceDistance
-
-		// 位置更新（左回り＝sを減らす）
 		const P = track.lapLengthLaneCenter(this.lane)
 		this.s = (this.s - ds) % P
 		if (this.s < 0) this.s += P
@@ -93,9 +95,9 @@ export class Runner {
 }
 
 export class Baton {
-	constructor({ holderId, lane, s }) {
-		this.holderId = holderId
+	constructor({ lane, holderId, s }) {
 		this.lane = lane
+		this.holderId = holderId
 		this.s = s
 	}
 

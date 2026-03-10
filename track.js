@@ -284,32 +284,38 @@ export class TrackView {
 			armTipByRunnerId.set(r.id, { x: tipX, y: tipY })
 		}
 
-		// ★ バトン：保持者の腕先、黄緑円（直径はランナーの半分）
-		const tip = armTipByRunnerId.get(sim.baton.holderId)
-		if (tip) {
-			noStroke()
-			fill(160, 255, 0)
-			circle(tip.x, tip.y, batonDia)
-		} else {
-			const bp = track.sToXY(sim.baton.lane, sim.baton.s)
-			noStroke()
-			fill(160, 255, 0)
-			circle(bp.x, bp.y, batonDia)
+		// ★ バトン：プレイヤーチームのバトンを描く
+		const playerLane = sim.game?.playerLane ?? 4;
+		const baton = sim.getBatonForLane(playerLane);
+
+		if (baton) {
+			const tip = armTipByRunnerId.get(baton.holderId);
+
+			if (tip) {
+				noStroke();
+				fill(160, 255, 0);
+				circle(tip.x, tip.y, batonDia);
+			} else {
+				const bp = track.sToXY(baton.lane, baton.s);
+				noStroke();
+				fill(160, 255, 0);
+				circle(bp.x, bp.y, batonDia);
+			}
 		}
 		// 「はい！」表示（ゲームモードのcall後0.5秒）
 		if (sim.game?.enabled) {
-			const now = performance.now();
-			const { P } = sim.game.getPR ? sim.game.getPR() : { P: null };
+			const now = performance.now()
+			const info = sim.game.getHUDInfo()
 
-			if (P && sim.game.haiUntilMs > now) {
-				const p = track.sToXY(P.lane, P.s);
-				push();
-				noStroke();
-				fill(255);
-				textSize(16);
-				textAlign(CENTER, CENTER);
-				text("はい！", p.x, p.y - 0.8); // 少し上
-				pop();
+			if (info.P && info.haiUntilMs > now) {
+				const p = track.sToXY(info.P.lane, info.P.s)
+				push()
+				noStroke()
+				fill(255)
+				textSize(16)
+				textAlign(CENTER, CENTER)
+				text('はい！', p.x, p.y - 0.8)
+				pop()
 			}
 		}
 	}

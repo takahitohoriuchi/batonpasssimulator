@@ -59,29 +59,22 @@ function setup() {
 			sim.playPauseToggle()
 			return
 		}
+
 		if (e.code === 'ArrowRight') {
 			e.preventDefault()
 			sim.stepForwardOneFrame()
 			return
 		}
+
 		if (e.code === 'ArrowLeft') {
 			e.preventDefault()
 			sim.stepBackwardOneFrame()
 			return
 		}
 
-		// ★ Enter/Return：2走が出走（go()）
-		if (e.code === 'Enter') {
-			e.preventDefault()
-			// 召喚されている全レーンの leg2 を走らせる
-			const lanes = Array.from(new Set(sim.runners.map((r) => r.lane)))
-			for (const lane of lanes) sim.goLeg(lane, 2)
-			return
-		}
-		// ★ゲーム入力を渡す（Control / Enter）
 		if (sim.game?.enabled) {
 			sim.game.onKeyDown(e)
-		}		
+		}
 	}
 
 }
@@ -98,20 +91,16 @@ function drawHUD() {
 	y += 18
 
 	if (sim.game?.enabled) {
-		const info = sim.game.getHUD()
-		text(`GAME: lane ${info.lane}  |  pStage=${info.pStage} rStage=${info.rStage} offer=${info.offeringReady}`, 14, y)
-		y += 18
+		const info = sim.game.getHUDInfo()
 
-		if (info.P) {
-			text(`P: ${info.P.id}  pos=${info.P.dist?.toFixed(2) ?? '-'}m  phase=${info.P.phase.toFixed(2)} rad`, 14, y)
+		if (info.P && info.R) {
+			text(`P = leg${info.P.leg}, R = leg${info.R.leg}  (lane ${info.lane})`, 14, y)
+			y += 18
+			text(`P pos = ${info.P.dist.toFixed(2)} m, phase = ${info.P.phase.toFixed(2)} rad, pStage = ${info.pStage}`, 14, y)
+			y += 18
+			text(`R pos = ${info.R.dist.toFixed(2)} m, phase = ${info.R.phase.toFixed(2)} rad, rStage = ${info.rStage}`, 14, y)
 			y += 18
 		}
-		if (info.R) {
-			text(`R: ${info.R.id}  pos=${info.R.dist?.toFixed(2) ?? '-'}m  phase=${info.R.phase.toFixed(2)} rad`, 14, y)
-			y += 18
-		}
-	} else {
-		// 旧表示（必要なら）
 	}
 
 	pop()

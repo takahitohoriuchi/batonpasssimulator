@@ -2,58 +2,57 @@ export class GameController {
 	constructor(sim) {
 		this.sim = sim
 
-		this.playerLane = 4
 		this.enabled = true
+		this.playerLane = 4
 
 		this._prevPId = null
 
-		// ---- ステージ ----
-		this.pStage = 0 // 0 idle / 1 call / 2 release
-		this.rStage = 0 // 0 idle / 1 go / 2 receiveReady / 3 grasp
-
-		this.called = false
-		this.haiUntilMs = 0
-
-		this._prevRPhase = null
-	}
-
-	// -----------------------
-	// テンポラルP/R
-	// -----------------------
-
-	getPR() {
-		const lane = this.playerLane
-		const sim = this.sim
-
-		const P = sim.runners.find((r) => r.lane === lane && r.id === sim.baton.holderId)
-
-		if (!P) return { P: null, R: null }
-
-		const R = sim.runners.find((r) => r.lane === lane && r.leg === P.leg + 1)
-
-		return { P, R }
-	}
-
-	// -----------------------
-	// P切替
-	// -----------------------
-
-	_resetOnPSwitch(id) {
-		if (id === this._prevPId) return
-
-		this._prevPId = id
-
+		// P: 0 idle / 1 called / 2 released
 		this.pStage = 0
+
+		// R: 0 idle / 1 go / 2 receiveReady / 3 grasp
 		this.rStage = 0
 
 		this.called = false
 		this.haiUntilMs = 0
+
 		this._prevRPhase = null
 	}
 
-	// -----------------------
-	// キー入力
-	// -----------------------
+	reset() {
+		this._prevPId = null
+		this.pStage = 0
+		this.rStage = 0
+		this.called = false
+		this.haiUntilMs = 0
+		this._prevRPhase = null
+	}
+
+	getPlayerBaton() {
+		return this.sim.getBatonForLane(this.playerLane)
+	}
+
+	getPR() {
+		const baton = this.getPlayerBaton()
+		if (!baton) return { P: null, R: null }
+
+		const P = this.sim.runners.find((r) => r.id === baton.holderId) || null
+		if (!P) return { P: null, R: null }
+
+		const R = this.sim.runners.find((r) => r.lane === P.lane && r.leg === P.leg + 1) || null
+		return { P, R }
+	}
+
+	_resetOnPSwitch(newPId) {
+		if (newPId === this._prevPId) return
+
+		this._prevPId = newPId
+		this.pStage = 0
+		this.rStage = 0
+		this.called = false
+		this.haiUntilMs = 0
+		this._prevRPhase = null
+	}
 
 	onKeyDown(e) {
 		if (!this.enabled) return
@@ -64,95 +63,84 @@ export class GameController {
 
 		this._resetOnPSwitch(P.id)
 
-		// ---- R操作 (control) ----
+		// R操作 = Control
 		if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
 			e.preventDefault()
 
-			// 1回目 → go
+			// 1回目: go
 			if (this.rStage === 0) {
 				R.go()
 				this.rStage = 1
 				return
 			}
 
-			// 2回目 → grasp
+			// 2回目: grasp（条件を満たした時だけ）
 			if (this.rStage === 2) {
-				if (this._canGrasp(P, R)) {
+				if (this.canGrasp(P, R)) {
 					this.rStage = 3
 				}
-
 				return
 			}
 		}
 
-		// ---- P操作 (return) ----
+		// P操作 = Enter
 		if (e.code === 'Enter') {
 			e.preventDefault()
 
-			// call
+			// 1回目: call
 			if (this.pStage === 0) {
 				this.called = true
 				this.pStage = 1
-
 				this.haiUntilMs = performance.now() + 500
-
 				this._prevRPhase = R.phase
 				return
 			}
 
-			// release
+			// 2回目: release（Rがgrasp済の時だけ）
 			if (this.pStage === 1) {
 				if (this.rStage === 3) {
-					this._release(P, R)
+					this.release(P, R)
 				}
-
 				return
 			}
 		}
 	}
 
-	// -----------------------
-	// grasp条件
-	// -----------------------
+	canGrasp(P, R) {
+		// （５）Rがもらう構え
+		if (this.rStage !== 2) return false
 
-	_canGrasp(P, R) {
-		// （１）0≤φ≤π
+		// P位相を 0..2π に正規化
 		const phi = normalize0to2pi(P.phase)
 
+		// （１）0≤φ≤π
 		if (!(0 <= phi && phi <= Math.PI)) return false
 
-		// （２）sin増加
+		// （２）sin増加フェーズ（cos>0）
 		if (Math.cos(phi) <= 0) return false
-
-		// （５）R状態がもらう構え
-		if (this.rStage !== 2) return false
 
 		// （４）距離条件
 		const dif = Math.abs(this.sim.shortestArcDistance(P, R))
-
-		const left = dif - R.l
-		const right = Math.sin(phi) * P.l
-
-		return left <= right
+		return dif - R.l <= Math.sin(phi) * P.l
 	}
 
-	// -----------------------
-	// release
-	// -----------------------
+	release(P, R) {
+		const baton = this.getPlayerBaton()
+		if (!baton) return
 
-	_release(P, R) {
 		this.pStage = 2
 
-		this.sim.baton.attachTo(R)
-
+		// Pはその場でストップ
+		P.stop()
 		P._is_passing = false
-		R._is_passing = false
-		R._is_raised_arm = false
-	}
 
-	// -----------------------
-	// フレーム更新
-	// -----------------------
+		// バトン移動
+		baton.attachTo(R)
+
+		// Rの構えはここで解除
+		R.exitReceiveReady()
+		R._is_passing = false
+	}
 
 	step() {
 		if (!this.enabled) return
@@ -162,62 +150,33 @@ export class GameController {
 
 		this._resetOnPSwitch(P.id)
 
-		// ------------------
-		// もらう構え
-		// ------------------
-
+		// call後、R位相が1.5π相当（=-π/2）になった瞬間にもらう構え
 		if (this.called && this.rStage === 1) {
 			const target = -Math.PI / 2
 
-			if (this._prevRPhase === null) this._prevRPhase = R.phase
+			if (this._prevRPhase == null) this._prevRPhase = R.phase
 
 			if (crossedAngle(this._prevRPhase, R.phase, target)) {
+				R.enterReceiveReady()
 				this.rStage = 2
-
-				R._is_raised_arm = true
-
-				R.phase = target
-				R.pitch *= 0.9
 			}
 
 			this._prevRPhase = R.phase
 		}
 	}
 
-	// -----------------------
-	// HUD
-	// -----------------------
-
-	getHUD() {
+	getHUDInfo() {
 		const { P, R } = this.getPR()
-
 		return {
+			lane: this.playerLane,
 			P,
 			R,
 			pStage: this.pStage,
 			rStage: this.rStage,
-			hai: this.haiUntilMs,
+			haiUntilMs: this.haiUntilMs,
 		}
 	}
-
-	// -----------------------
-	// summonリセット
-	// -----------------------
-
-	reset() {
-		this._prevPId = null
-
-		this.pStage = 0
-		this.rStage = 0
-
-		this.called = false
-		this.haiUntilMs = 0
-	}
 }
-
-// ---------------------------
-// util
-// ---------------------------
 
 function normalize0to2pi(a) {
 	let x = a
@@ -227,16 +186,14 @@ function normalize0to2pi(a) {
 }
 
 function crossedAngle(prev, now, target) {
-	const a = wrap(prev - target)
-	const b = wrap(now - target)
-
-	if (Math.sign(a) !== Math.sign(b)) return true
-
-	return false
+	const a = wrapToPi(prev - target)
+	const b = wrapToPi(now - target)
+	return (a > 0 && b <= 0) || (a < 0 && b >= 0) || Math.abs(b) < 0.2
 }
 
-function wrap(x) {
-	while (x > Math.PI) x -= 2 * Math.PI
-	while (x < -Math.PI) x += 2 * Math.PI
-	return x
+function wrapToPi(x) {
+	let a = x
+	while (a > Math.PI) a -= 2 * Math.PI
+	while (a < -Math.PI) a += 2 * Math.PI
+	return a
 }
