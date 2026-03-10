@@ -67,11 +67,10 @@ export class GameController {
 
 		const phi = normalize0to2pi(P.phase)
 
-		if (!(Math.PI <= phi && phi <= 1.5*Math.PI)) return false
-		if (Math.cos(phi) > 0) return false
+		if (!(Math.PI > phi || phi > 1.5*Math.PI)) return false
 
 		const dif = Math.abs(this.sim.shortestArcDistance(P, R))
-		return dif - R.l <= Math.sin(phi) * P.l
+		return dif - R.l <= - Math.sin(phi) * P.l
 	}
 
 	canGrasp(P, R) {
