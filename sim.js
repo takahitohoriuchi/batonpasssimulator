@@ -35,6 +35,7 @@ export class Simulation {
 		this.history = []
 		this.maxHistory = 60 * 60 * 10
 		this.pushHistory()
+		this.failureMessage = ''
 	}
 
 	firstLegStartS(lane) {
@@ -269,8 +270,10 @@ export class Simulation {
 						haiUntilMs: this.game.haiUntilMs,
 						_prevPId: this.game._prevPId,
 						_prevRPhase: this.game._prevRPhase,
+						canOfferNow: this.game.canOfferNow,
 					}
 				: null,
+			failureMessage: this.failureMessage,
 		}
 	}
 
@@ -294,11 +297,60 @@ export class Simulation {
 			this.game.haiUntilMs = st.game.haiUntilMs
 			this.game._prevPId = st.game._prevPId
 			this.game._prevRPhase = st.game._prevRPhase
+			this.game.canOfferNow = st.game.canOfferNow
 		}
+		this.failureMessage = st.failureMessage ?? ''
 	}
 
 	pushHistory() {
 		this.history.push(this.snapshot())
 		if (this.history.length > this.maxHistory) this.history.shift()
+	}
+	resetRace() {
+		// いまのrunnerの pitch/stride/l などは保持しつつ、位置と状態だけ戻す
+		for (const r of this.runners) {
+			let d0 = 0.0
+			if (r.leg === 2) d0 = 80.0
+			if (r.leg === 3) d0 = 180.0
+			if (r.leg === 4) d0 = 280.0
+
+			r.s = this.raceDistToS(r.lane, d0)
+			r.dist = d0
+
+			r.phase = 0.0
+
+			r._is_running = r.leg === 1
+			r._is_raised_arm = false
+			r._is_receive_ready = false
+			r._is_offer_pose = false
+			r._is_passing = false
+
+			r.stride = r.baseStride
+		}
+
+		// 各チームのバトンを1走に戻す
+		this.batons = []
+		const lanes = Array.from(new Set(this.runners.map((r) => r.lane)))
+		for (const lane of lanes) {
+			const r1 = this.runners.find((r) => r.lane === lane && r.leg === 1)
+			if (r1) {
+				this.batons.push(
+					new Baton({
+						lane,
+						holderId: r1.id,
+						s: r1.s,
+					}),
+				)
+			}
+		}
+
+		this.t = 0
+		this.failureMessage = ''
+		this.player.paused = true // reset後はPAUSEのまま
+
+		this.game?.reset()
+
+		this.history = []
+		this.pushHistory()
 	}
 }

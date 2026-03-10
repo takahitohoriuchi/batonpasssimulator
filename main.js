@@ -54,6 +54,12 @@ function setup() {
 	}
 
 	function onKeyDown(e) {
+		// Failure中は gameController 側で「何かキーでreset」する
+		if (sim.game?.enabled && sim.failureMessage) {
+			sim.game.onKeyDown(e)
+			return
+		}
+
 		if (e.code === 'Space') {
 			e.preventDefault()
 			sim.playPauseToggle()
@@ -90,45 +96,32 @@ function drawHUD() {
 	text(`t = ${sim.t.toFixed(2)} s  |  speed = x${sim.player.speed.toFixed(1)}  |  ${sim.player.paused ? 'PAUSED' : 'PLAY'}`, 14, y)
 	y += 18
 
+	if (sim.failureMessage) {
+		fill(255, 80, 80)
+		text(`Failure: ${sim.failureMessage}`, 14, y)
+		y += 18
+		fill(220)
+		text(`Press any key to reset`, 14, y)
+		y += 18
+	}
+
 	if (sim.game?.enabled) {
 		const info = sim.game.getHUDInfo()
 
 		if (info.P && info.R) {
 			text(`P = leg${info.P.leg}, R = leg${info.R.leg}  (lane ${info.lane})`, 14, y)
 			y += 18
-			text(`P pos = ${info.P.dist.toFixed(2)} m, phase = ${info.P.phase.toFixed(2)} rad, pStage = ${info.pStage}`, 14, y)
+			text(`P pos = ${info.P.dist.toFixed(2)} m  |  phase = ${info.P.phase.toFixed(2)} rad  |  pStage = ${info.pStage} (${info.pStageLabel})`, 14, y)
 			y += 18
-			text(`R pos = ${info.R.dist.toFixed(2)} m, phase = ${info.R.phase.toFixed(2)} rad, rStage = ${info.rStage}`, 14, y)
+			text(`R pos = ${info.R.dist.toFixed(2)} m  |  phase = ${info.R.phase.toFixed(2)} rad  |  rStage = ${info.rStage} (${info.rStageLabel})`, 14, y)
+			y += 18
+			text(`canOffer = ${info.canOfferNow}`, 14, y)
 			y += 18
 		}
 	}
 
 	pop()
 }
-// function drawHUD() {
-// 	push()
-// 	resetMatrix()
-// 	noStroke()
-// 	fill(220)
-// 	textSize(14)
-
-// 	let y = 22
-// 	text(`t = ${sim.t.toFixed(2)} s  |  speed = x${sim.player.speed.toFixed(1)}  |  ${sim.player.paused ? 'PAUSED' : 'PLAY'}`, 14, y)
-// 	y += 18
-
-// 	// baton（sはログ用。描画は腕先に出す）
-// 	text(`baton holder = ${sim.baton.holderId}`, 14, y)
-// 	y += 18
-
-// 	for (const r of sim.runners) {
-// 		const P = sim.track.lapLengthLaneCenter(r.lane)
-// 		const s = ((r.s % P) + P) % P
-// 		// text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : d = ${r.dist.toFixed(2)} m`, 14, y)
-// 		text(`${r.id} (Lane ${r.lane}, Leg ${r.leg}) : pos = ${r.dist.toFixed(2)} m`, 14, y)
-// 		y += 18
-// 	}
-// 	pop()
-// }
 
 function draw() {
 	background(15)

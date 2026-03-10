@@ -214,17 +214,23 @@ export class TrackView {
 		const track = this.track
 
 		const runnerDia = 0.6
-		const batonDia = runnerDia // ★バトンもランナーと同じ大きさ
+		const batonDia = runnerDia
 
 		const armTipByRunnerId = new Map()
+
+		const gameInfo = sim.game?.enabled ? sim.game.getHUDInfo() : null
+		const pinkIds = new Set()
+
+		if (gameInfo?.canOfferNow && gameInfo.P && gameInfo.R) {
+			pinkIds.add(gameInfo.P.id)
+			pinkIds.add(gameInfo.R.id)
+		}
 
 		for (const r of sim.runners) {
 			const eps = 0.05
 
-			// レーン中心点
 			const c0 = track.sToXY(r.lane, r.s)
 
-			// 接線（走方向）
 			const p1 = track.sToXY(r.lane, r.s - eps)
 			const p2 = track.sToXY(r.lane, r.s + eps)
 			let tx = p2.x - p1.x,
@@ -233,28 +239,24 @@ export class TrackView {
 			tx /= tn
 			ty /= tn
 
-			// 法線（レーン左右）
 			const nx = -ty,
 				ny = tx
 
-			// レーン内の左右オフセット（見た目用）：1/3は左、2/4は右（以前の仕様のまま）
-			// const laneSide = r.leg === 1 || r.leg === 3 ? -1 : +1
-			// const lateral = track.laneW * 0.25 * laneSide// ★1/3走は内側、2/4走は外側
+			// 1/3走は内側、2/4走は外側
 			const laneSide = r.leg === 1 || r.leg === 3 ? +1 : -1
 			const lateral = track.laneW * 0.25 * laneSide
 
 			const cx = c0.x + nx * lateral
 			const cy = c0.y + ny * lateral
 
-			// ランナー
+			// ランナー色
+			if (pinkIds.has(r.id)) fill(255, 170, 210)
+			else fill(255)
+
 			noStroke()
-			fill(255)
 			circle(cx, cy, runnerDia)
 
-			// ★ 腕の生える側（要求(3)）
-			// 進行方向を向いたとき：
-			// 右腕＝進行方向に対して右側＝法線の「右」= (-nx,-ny)
-			// 左腕＝法線の「左」= (+nx,+ny)
+			// 腕
 			const rightNormalX = -nx,
 				rightNormalY = -ny
 			const leftNormalX = nx,
@@ -264,45 +266,38 @@ export class TrackView {
 			const ax = isRightArm ? rightNormalX : leftNormalX
 			const ay = isRightArm ? rightNormalY : leftNormalY
 
-			// 腕の基点：円の端（中心から armSide方向へ半径分）
 			const baseX = cx + ax * (runnerDia / 2)
 			const baseY = cy + ay * (runnerDia / 2)
 
-			// ★ 位相→単振動の向き（要求(3)の「180度違い」）	
 			const phaseSign = isRightArm ? 1 : -1
 			const armLen = r.l * Math.sin(r.phase) * phaseSign
 
-			// びよん方向：走方向（接線方向）
 			const tipX = baseX + tx * armLen
 			const tipY = baseY + ty * armLen
 
-			// 腕の線
-			stroke(255, 255, 0) // ★黄色
-			strokeWeight(0.16) // ★太く（レーン線より目立つ想定）
+			stroke(255, 255, 0)
+			strokeWeight(0.16)
 			line(baseX, baseY, tipX, tipY)
 
 			armTipByRunnerId.set(r.id, { x: tipX, y: tipY })
 		}
 
-		// ★ バトン：プレイヤーチームのバトンを描く
-		const playerLane = sim.game?.playerLane ?? 4;
-		const baton = sim.getBatonForLane(playerLane);
+		// 各チームのバトンを全部描く
+		for (const baton of sim.batons) {
+			const tip = armTipByRunnerId.get(baton.holderId)
 
-		if (baton) {
-			const tip = armTipByRunnerId.get(baton.holderId);
+			noStroke()
+			fill(160, 255, 0)
 
 			if (tip) {
-				noStroke();
-				fill(160, 255, 0);
-				circle(tip.x, tip.y, batonDia);
+				circle(tip.x, tip.y, batonDia)
 			} else {
-				const bp = track.sToXY(baton.lane, baton.s);
-				noStroke();
-				fill(160, 255, 0);
-				circle(bp.x, bp.y, batonDia);
+				const bp = track.sToXY(baton.lane, baton.s)
+				circle(bp.x, bp.y, batonDia)
 			}
 		}
-		// 「はい！」表示（ゲームモードのcall後0.5秒）
+
+		// 「はい！」表示（主人公チームのみ）
 		if (sim.game?.enabled) {
 			const now = performance.now()
 			const info = sim.game.getHUDInfo()

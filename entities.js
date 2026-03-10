@@ -15,10 +15,11 @@ export class Runner {
 		this.raceDistance = 400.0
 
 		this._is_running = isRunning
-		this._is_raised_arm = false
-		this._is_passing = false
 
+		this._is_raised_arm = false
 		this._is_receive_ready = false
+		this._is_offer_pose = false
+		this._is_passing = false
 
 		this.armReachExtra = 0.2
 	}
@@ -26,6 +27,7 @@ export class Runner {
 	go() {
 		this._is_running = true
 	}
+
 	stop() {
 		this._is_running = false
 	}
@@ -38,6 +40,7 @@ export class Runner {
 		return this.l + this.armReachExtra
 	}
 
+	// もらうポーズ
 	enterReceiveReady() {
 		if (this._is_receive_ready) return
 		this._is_receive_ready = true
@@ -52,28 +55,34 @@ export class Runner {
 		this.stride = this.baseStride
 	}
 
+	// 差し出しポーズ
+	enterOfferPose() {
+		if (this._is_offer_pose) return
+		this._is_offer_pose = true
+		this._is_passing = true
+		this.stride = this.baseStride * 0.9
+		// phase はその瞬間で固定
+	}
+
+	exitOfferPose() {
+		this._is_offer_pose = false
+		this._is_passing = false
+		this.stride = this.baseStride
+	}
+
 	phaseUpdate(dtBase, playerSpeed) {
+		// receiveReady中は固定
 		if (this._is_receive_ready) {
 			this.phase = -Math.PI / 2
 			return
 		}
 
-		const dphi = playerSpeed * this.pitch * Math.PI * dtBase
-
-		const tol = 0.2
-		const near = (a, b) => Math.abs(a - b) < tol
-
-		const targetUp = +Math.PI / 2
-		const targetDown = -Math.PI / 2
-
-		if (this.leg === 1 || this.leg === 3) {
-			if (this._is_passing && near(this.phase, targetUp)) return
-			if (this._is_raised_arm && near(this.phase, targetDown)) return
-		} else {
-			if (this._is_passing && near(this.phase, targetDown)) return
-			if (this._is_raised_arm && near(this.phase, targetUp)) return
+		// offer中は固定
+		if (this._is_offer_pose) {
+			return
 		}
 
+		const dphi = playerSpeed * this.pitch * Math.PI * dtBase
 		this.phase += dphi
 
 		while (this.phase > Math.PI) this.phase -= 2 * Math.PI
