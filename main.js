@@ -6,6 +6,8 @@ let view
 let sim
 let gui
 
+let cameraState;
+
 function isPointerOverGUI() {
 	const el = document.elementFromPoint(mouseX, mouseY)
 	if (!el) return false
@@ -29,26 +31,29 @@ function setup() {
 		zoomZone23: () => zoomToZoneIndex(1),
 		zoomZone34: () => zoomToZoneIndex(2),
 	}
+	cameraState = {
+		followBaton: false,
+		followZoom: 2.6,
+	}
 
 	function rebuildGui() {
 		if (gui) gui.destroy()
-		gui = buildGUI(sim, cameraApi, rebuildGui)
+		gui = buildGUI(sim, cameraApi, cameraState, rebuildGui)
 	}
 	rebuildGui()
 
 	window.addEventListener('keydown', onKeyDown, { passive: false })
 
 	function zoomToZoneIndex(idx) {
-		const z = sim.zones[idx]
-		if (!z) return
+		// idx: 0=1-2, 1=2-3, 2=3-4
+		const lane = sim.game?.playerLane ?? 4
 
-		const lane = 4
-		const centerS = (z.start + z.end) / 2
-		const p = sim.track.sToXY(lane, centerS)
+		const centers = [95, 195, 295] // 80-110,180-210,280-310 の中心
+		const d = centers[idx] ?? 95
+
+		const p = sim.track.sToXY(lane, sim.raceDistToS(lane, d))
 
 		view.zoom = 2.6
-
-		// world(p) が画面中心に来るように pan（px）を設定
 		view.panX = -(p.x * view.zoom * view.pxPerM)
 		view.panY = -(p.y * view.zoom * view.pxPerM)
 	}
@@ -108,6 +113,13 @@ function drawHUD() {
 	if (sim.game?.enabled) {
 		const info = sim.game.getHUDInfo()
 
+		if (info.successMessage) {
+			fill(80, 255, 120)
+			text(`Success!`, 14, y)
+			y += 18
+			fill(220)
+		}
+
 		if (info.P && info.R) {
 			text(`P = leg${info.P.leg}, R = leg${info.R.leg}  (lane ${info.lane})`, 14, y)
 			y += 18
@@ -127,6 +139,18 @@ function draw() {
 	background(15)
 
 	sim.step(1 / 60)
+	if (cameraState.followBaton && sim.game?.enabled) {
+		const baton = sim.getBatonForLane(sim.game.playerLane)
+		if (baton) {
+			const holder = sim.runners.find((r) => r.id === baton.holderId)
+			if (holder) {
+				const p = sim.track.sToXY(holder.lane, holder.s)
+				view.zoom = cameraState.followZoom
+				view.panX = -(p.x * view.zoom * view.pxPerM)
+				view.panY = -(p.y * view.zoom * view.pxPerM)
+			}
+		}
+	}
 
 	view.beginDraw()
 	view.drawTrackBase()

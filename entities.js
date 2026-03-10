@@ -8,7 +8,7 @@ export class Runner {
 		this.pitch = pitch
 		this.stride = stride
 		this.baseStride = stride
-		this.phase = phase
+		this.phase = phase // 0..2π
 		this.l = l
 
 		this.dist = dist
@@ -40,12 +40,11 @@ export class Runner {
 		return this.l + this.armReachExtra
 	}
 
-	// もらうポーズ
 	enterReceiveReady() {
 		if (this._is_receive_ready) return
 		this._is_receive_ready = true
 		this._is_raised_arm = true
-		this.phase = -Math.PI / 2 // 1.5π相当
+		this.phase = (3 * Math.PI) / 2 // ★ 1.5π
 		this.stride = this.baseStride * 0.9
 	}
 
@@ -55,13 +54,12 @@ export class Runner {
 		this.stride = this.baseStride
 	}
 
-	// 差し出しポーズ
 	enterOfferPose() {
 		if (this._is_offer_pose) return
 		this._is_offer_pose = true
 		this._is_passing = true
 		this.stride = this.baseStride * 0.9
-		// phase はその瞬間で固定
+		// phaseはその瞬間で固定
 	}
 
 	exitOfferPose() {
@@ -71,13 +69,11 @@ export class Runner {
 	}
 
 	phaseUpdate(dtBase, playerSpeed) {
-		// receiveReady中は固定
 		if (this._is_receive_ready) {
-			this.phase = -Math.PI / 2
+			this.phase = (3 * Math.PI) / 2
 			return
 		}
 
-		// offer中は固定
 		if (this._is_offer_pose) {
 			return
 		}
@@ -85,8 +81,9 @@ export class Runner {
 		const dphi = playerSpeed * this.pitch * Math.PI * dtBase
 		this.phase += dphi
 
-		while (this.phase > Math.PI) this.phase -= 2 * Math.PI
-		while (this.phase < -Math.PI) this.phase += 2 * Math.PI
+		// ★ 2πで0に戻す
+		while (this.phase >= 2 * Math.PI) this.phase -= 2 * Math.PI
+		while (this.phase < 0) this.phase += 2 * Math.PI
 	}
 
 	step(dtBase, track, playerSpeed) {

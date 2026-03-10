@@ -1,6 +1,6 @@
 // cameraApi: { overview(), zoomZone12(), zoomZone23(), zoomZone34() }
 // rebuildGui: () => void  （召喚後にGUIを作り直すため）
-export function buildGUI(sim, cameraApi, rebuildGui) {
+export function buildGUI(sim, cameraApi, cameraState, rebuildGui) {
 	const gui = new lil.GUI()
 
 	// ===== カメラ切り替え =====
@@ -9,6 +9,8 @@ export function buildGUI(sim, cameraApi, rebuildGui) {
 	cam.add(cameraApi, 'zoomZone12').name('Zoom: 1-2 zone')
 	cam.add(cameraApi, 'zoomZone23').name('Zoom: 2-3 zone')
 	cam.add(cameraApi, 'zoomZone34').name('Zoom: 3-4 zone')
+	cam.add(cameraState, 'followBaton').name('Follow Baton')
+	cam.add(cameraState, 'followZoom', 1.0, 6.0, 0.1).name('Follow Zoom')
 
 	// ===== 再生設定（speedのみ）=====
 	const play = gui.addFolder('Playback')
@@ -73,7 +75,7 @@ export function buildGUI(sim, cameraApi, rebuildGui) {
 			}
 			if (segments.length === 0) segments.push('12')
 
-			sim.summon({ lanes, segments })			
+			sim.summon({ lanes, segments })
 
 			// 見失い防止
 			cameraApi.overview()
