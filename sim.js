@@ -8,6 +8,19 @@ export class Simulation {
 
 		this.player = { paused: false, speed: 1.0 }
 		this.t = 0
+		this.interpersonal = {
+			enabled: false,
+			passer: {
+				syncMode: 'sameTeamNext',
+				rangeM: 400.0,
+				K: 0.0,
+			},
+			receiver: {
+				syncMode: 'sameTeamPrevious',
+				rangeM: 400.0,
+				K: 0.0,
+			},
+		}
 
 		this.visual = {
 			runnerDia_m: 0.6,
@@ -34,6 +47,7 @@ export class Simulation {
 
 		this.history = []
 		this.maxHistory = 60 * 60 * 10
+		this.refreshAllRunnerKinematics()
 		this.pushHistory()
 		this.failureMessage = ''
 	}
@@ -119,12 +133,14 @@ export class Simulation {
 						lane,
 						leg,
 						s: s0,
-						pitch: 5.0,
-						stride: 2.0,
 						phase: 0.0,
 						l: 0.8,
 						isRunning,
 						dist: d0,
+						runDistance: 0.0,
+						omegaScale: 1.0,
+						strideScale: 1.0,
+						startTriggerOffset: 0.0,
 					}),
 				)
 			}
@@ -143,7 +159,160 @@ export class Simulation {
 
 		this.history = []
 		if (this.game) this.game.reset()
+		this.refreshAllRunnerKinematics()
 		this.pushHistory()
+	}
+
+	refreshAllRunnerKinematics() {
+		for (const r of this.runners) {
+			r.refreshKinematics({
+				interpersonalOmegaComponent: 0.0,
+				interpersonalStrideComponent: 0.0,
+				syncPartnerCount: 0,
+			})
+		}
+
+		if (!this.interpersonal.enabled) return
+
+		for (const r of this.runners) {
+			const { config, partners } = this.getSynchronizationContext(r)
+			const partnerCount = partners.length
+			const coupling =
+				partnerCount > 0
+					? (config.K / partnerCount) * partners.reduce((sum, p) => sum + Math.sin(p.phase - r.phase), 0.0)
+					: 0.0
+
+			r.refreshKinematics({
+				interpersonalOmegaComponent: coupling,
+				interpersonalStrideComponent: 0.0,
+				syncPartnerCount: partnerCount,
+			})
+		}
+	}
+
+	getSynchronizationContext(runner) {
+		if (!this.interpersonal.enabled || !runner._is_running) {
+			return { config: { K: 0.0, rangeM: 0.0, syncMode: 'none' }, partners: [] }
+		}
+
+		const role = this.getRunnerRelayRole(runner)
+		if (role === 'passer') {
+			return {
+				config: this.interpersonal.passer,
+				partners: this.getPasserSynchronizationPartners(runner),
+			}
+		}
+		if (role === 'receiver') {
+			return {
+				config: this.interpersonal.receiver,
+				partners: this.getReceiverSynchronizationPartners(runner),
+			}
+		}
+
+		return { config: { K: 0.0, rangeM: 0.0, syncMode: 'none' }, partners: [] }
+	}
+
+	getRunnerRelayRole(runner) {
+		const baton = this.getBatonForLane(runner.lane)
+		if (!baton) return 'none'
+
+		if (baton.holderId === runner.id) return 'passer'
+
+		const holder = this.runners.find((r) => r.id === baton.holderId)
+		if (!holder) return 'none'
+
+		const receiver = this.runners.find((r) => r.lane === runner.lane && r.leg === holder.leg + 1)
+		if (receiver?.id === runner.id) return 'receiver'
+
+		return 'none'
+	}
+
+	getPasserSynchronizationPartners(runner) {
+		const mode = this.interpersonal.passer.syncMode
+		let candidates = []
+
+		if (mode === 'sameTeamNext') {
+			candidates = this.getCurrentReceivers().filter((other) => other.lane === runner.lane)
+		} else if (mode === 'allNext') {
+			candidates = this.getCurrentReceivers()
+		} else if (mode === 'allRunning') {
+			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
+		}
+
+		return candidates.filter((other) => other.id !== runner.id && other._is_running && this.isWithinSyncRange(runner, other, this.interpersonal.passer.rangeM))
+	}
+
+	getReceiverSynchronizationPartners(runner) {
+		const mode = this.interpersonal.receiver.syncMode
+		let candidates = []
+
+		if (mode === 'sameTeamPrevious') {
+			candidates = this.getCurrentPassers().filter((other) => other.lane === runner.lane)
+		} else if (mode === 'allPrevious') {
+			candidates = this.getCurrentPassers()
+		} else if (mode === 'allRunning') {
+			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
+		}
+
+		return candidates.filter((other) => other.id !== runner.id && other._is_running && this.isWithinSyncRange(runner, other, this.interpersonal.receiver.rangeM))
+	}
+
+	getCurrentPassers() {
+		return this.batons
+			.map((baton) => this.runners.find((r) => r.id === baton.holderId) || null)
+			.filter(Boolean)
+	}
+
+	getCurrentReceivers() {
+		return this.getCurrentPassers()
+			.map((passer) => this.runners.find((r) => r.lane === passer.lane && r.leg === passer.leg + 1) || null)
+			.filter(Boolean)
+	}
+
+	isWithinSyncRange(aRunner, bRunner, rangeM) {
+		return Math.abs(this.shortestRaceDistanceMeters(aRunner.dist, bRunner.dist)) <= rangeM
+	}
+
+	shortestRaceDistanceMeters(aDist, bDist) {
+		let d = bDist - aDist
+		d = (((d + 200) % 400) + 400) % 400 - 200
+		return d
+	}
+
+	getReceiverStartRaceDist(leg) {
+		if (leg === 2) return 80.0
+		if (leg === 3) return 180.0
+		if (leg === 4) return 280.0
+		return 0.0
+	}
+
+	getStartTriggerRaceDist(runner) {
+		return Math.max(0.0, this.getReceiverStartRaceDist(runner.leg) - (runner.startTriggerOffset ?? 0.0))
+	}
+
+	getVisibleMarks() {
+		return [...this.marks, ...this.getStartTriggerMarks()]
+	}
+
+	getStartTriggerMarks() {
+		if (this.game?.enabled) return []
+
+		return this.runners
+			.filter((r) => r.leg > 1)
+			.map((r) => ({
+				lane: r.lane,
+				s: this.raceDistToS(r.lane, this.getStartTriggerRaceDist(r)),
+				halfLenM: this.track.laneW / 4,
+				color: color(90, 210, 255),
+			}))
+	}
+
+	isRunnerInZone(runner, zone) {
+		return zone.start <= runner.dist && runner.dist <= zone.end
+	}
+
+	didRunnerCrossRaceDist(runner, raceDist) {
+		return runner.prevDist < raceDist && raceDist <= runner.dist
 	}
 
 	rebuildMarks() {
@@ -182,11 +351,12 @@ export class Simulation {
 	shortestArcDistance(aRunner, bRunner) {
 		const P = this.track.lapLengthLaneCenter(aRunner.lane)
 		let d = bRunner.s - aRunner.s
-		d = ((d + P / 2) % P) - P / 2
+		d = (((d + P / 2) % P) + P) % P - P / 2
 		return d
 	}
 
 	step(dtBase) {
+		this.refreshAllRunnerKinematics()
 		if (this.player.paused) return
 		this.stepFrame(dtBase)
 	}
@@ -210,6 +380,12 @@ export class Simulation {
 		const sp = this.player.speed
 		this.t += dtBase * sp
 
+		this.refreshAllRunnerKinematics()
+
+		for (const r of this.runners) {
+			r.prevDist = r.dist
+		}
+
 		for (const r of this.runners) {
 			r.step(dtBase, this.track, sp)
 		}
@@ -232,6 +408,7 @@ export class Simulation {
 			this.controller.step(this)
 		}
 
+		this.refreshAllRunnerKinematics()
 		this.pushHistory()
 	}
 
@@ -244,14 +421,24 @@ export class Simulation {
 				lane: r.lane,
 				leg: r.leg,
 				s: r.s,
-				pitch: r.pitch,
+				runDistance: r.runDistance,
+				prevDist: r.prevDist,
+				omega: r.omega,
+				omegaScale: r.omegaScale,
 				stride: r.stride,
-				baseStride: r.baseStride,
+				strideScale: r.strideScale,
+				startTriggerOffset: r.startTriggerOffset,
+				individualOmegaComponent: r.individualOmegaComponent,
+				interpersonalOmegaComponent: r.interpersonalOmegaComponent,
+				syncPartnerCount: r.syncPartnerCount,
+				individualStrideComponent: r.individualStrideComponent,
+				interpersonalStrideComponent: r.interpersonalStrideComponent,
 				phase: r.phase,
 				l: r.l,
 				dist: r.dist,
 				_is_running: r._is_running,
 				_is_raised_arm: r._is_raised_arm,
+				_is_offer_pose: r._is_offer_pose,
 				_is_passing: r._is_passing,
 				_is_receive_ready: r._is_receive_ready,
 				armReachExtra: r.armReachExtra,
@@ -273,6 +460,11 @@ export class Simulation {
 						canOfferNow: this.game.canOfferNow,
 					}
 				: null,
+			interpersonal: {
+				enabled: this.interpersonal.enabled,
+				passer: { ...this.interpersonal.passer },
+				receiver: { ...this.interpersonal.receiver },
+			},
 			failureMessage: this.failureMessage,
 		}
 	}
@@ -286,6 +478,14 @@ export class Simulation {
 			const r = this.runners.find((x) => x.id === saved.id)
 			if (r) Object.assign(r, saved)
 		}
+
+		if (st.interpersonal) {
+			this.interpersonal.enabled = st.interpersonal.enabled
+			Object.assign(this.interpersonal.passer, st.interpersonal.passer ?? {})
+			Object.assign(this.interpersonal.receiver, st.interpersonal.receiver ?? {})
+		}
+
+		this.refreshAllRunnerKinematics()
 
 		this.batons = st.batons.map((b) => new Baton(b))
 
@@ -307,7 +507,7 @@ export class Simulation {
 		if (this.history.length > this.maxHistory) this.history.shift()
 	}
 	resetRace() {
-		// いまのrunnerの pitch/stride/l などは保持しつつ、位置と状態だけ戻す
+		// いまのrunnerの係数/l などは保持しつつ、位置と状態だけ戻す
 		for (const r of this.runners) {
 			let d0 = 0.0
 			if (r.leg === 2) d0 = 80.0
@@ -316,6 +516,8 @@ export class Simulation {
 
 			r.s = this.raceDistToS(r.lane, d0)
 			r.dist = d0
+			r.prevDist = d0
+			r.runDistance = 0.0
 
 			r.phase = 0.0
 
@@ -324,8 +526,6 @@ export class Simulation {
 			r._is_receive_ready = false
 			r._is_offer_pose = false
 			r._is_passing = false
-
-			r.stride = r.baseStride
 		}
 
 		// 各チームのバトンを1走に戻す
@@ -349,6 +549,7 @@ export class Simulation {
 		this.player.paused = true // reset後はPAUSEのまま
 
 		this.game?.reset()
+		this.refreshAllRunnerKinematics()
 
 		this.history = []
 		this.pushHistory()

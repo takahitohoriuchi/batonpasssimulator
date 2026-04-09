@@ -7,6 +7,8 @@ let sim
 let gui
 
 let cameraState;
+let hudState;
+const TEAM_LABELS = 'ABCDEFGH'
 
 function isPointerOverGUI() {
 	const el = document.elementFromPoint(mouseX, mouseY)
@@ -35,10 +37,13 @@ function setup() {
 		followBaton: false,
 		followZoom: 2.6,
 	}
+	hudState = {
+		showHUD: true,
+	}
 
 	function rebuildGui() {
 		if (gui) gui.destroy()
-		gui = buildGUI(sim, cameraApi, cameraState, rebuildGui)
+		gui = buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui)
 	}
 	rebuildGui()
 
@@ -91,48 +96,164 @@ function setup() {
 }
 
 function drawHUD() {
+	if (!hudState?.showHUD) return
+
 	push()
 	resetMatrix()
-	noStroke()
-	fill(220)
-	textSize(14)
+	textFont('monospace')
+	textAlign(LEFT, TOP)
 
-	let y = 22
-	text(`t = ${sim.t.toFixed(2)} s  |  speed = x${sim.player.speed.toFixed(1)}  |  ${sim.player.paused ? 'PAUSED' : 'PLAY'}`, 14, y)
-	y += 18
+	const pad = 12
+	const gap = 10
+	const cardW = Math.min(420, Math.max(320, width - pad * 2))
+	const headerLines = buildHUDHeaderLines()
+	const headerH = 18 + headerLines.length * 18
 
-	if (sim.failureMessage) {
-		fill(255, 80, 80)
-		text(`Failure: ${sim.failureMessage}`, 14, y)
-		y += 18
-		fill(220)
-		text(`Press any key to reset`, 14, y)
+	drawHUDPanel(pad, pad, cardW, headerH)
+	let y = pad + 10
+	for (const line of headerLines) {
+		drawHUDTextLine(line, pad + 12, y)
 		y += 18
 	}
 
-	if (sim.game?.enabled) {
-		const info = sim.game.getHUDInfo()
+	const cards = buildHUDCards()
+	if (cards.length > 0) {
+		const cardH = 158
+		const startY = pad + headerH + gap
+		const cardsPerCol = Math.max(1, Math.floor((height - startY - pad) / (cardH + gap)))
 
-		if (info.successMessage) {
-			fill(80, 255, 120)
-			text(`Success!`, 14, y)
-			y += 18
-			fill(220)
-		}
-
-		if (info.P && info.R) {
-			text(`P = leg${info.P.leg}, R = leg${info.R.leg}  (lane ${info.lane})`, 14, y)
-			y += 18
-			text(`P pos = ${info.P.dist.toFixed(2)} m  |  phase = ${info.P.phase.toFixed(2)} rad  |  pStage = ${info.pStage} (${info.pStageLabel})`, 14, y)
-			y += 18
-			text(`R pos = ${info.R.dist.toFixed(2)} m  |  phase = ${info.R.phase.toFixed(2)} rad  |  rStage = ${info.rStage} (${info.rStageLabel})`, 14, y)
-			y += 18
-			text(`canOffer = ${info.canOfferNow}`, 14, y)
-			y += 18
+		for (let i = 0; i < cards.length; i++) {
+			const col = Math.floor(i / cardsPerCol)
+			const row = i % cardsPerCol
+			const x = pad + col * (cardW + gap)
+			const y0 = startY + row * (cardH + gap)
+			drawHUDCard(cards[i], x, y0, cardW, cardH)
 		}
 	}
 
 	pop()
+}
+
+function buildHUDHeaderLines() {
+	const stateLabel = sim.player.paused ? 'PAUSED' : 'PLAY'
+	const playerTeam = laneToTeamLabel(sim.game?.playerLane ?? null)
+	const summonedTeams = Array.from(new Set(sim.runners.map((r) => laneToTeamLabel(r.lane)))).join(', ')
+
+	const lines = [
+		{ text: `Relay Simulator HUD`, color: [255, 255, 255] },
+		{ text: `t=${sim.t.toFixed(2)} s  |  speed=x${sim.player.speed.toFixed(1)}  |  state=${stateLabel}`, color: [220, 220, 220] },
+		{ text: `player=${playerTeam}  |  summoned=${summonedTeams || '-'}`, color: [180, 210, 255] },
+		{ text: `mode=${sim.game?.enabled ? 'game' : 'non-game'}  |  sync=${sim.interpersonal.enabled ? 'on' : 'off'}`, color: [170, 235, 210] },
+	]
+
+	if (sim.failureMessage) {
+		lines.push({ text: `Failure: ${sim.failureMessage}  |  press any key to reset`, color: [255, 110, 110] })
+	}
+
+	if (sim.game?.enabled && sim.game.successMessage) {
+		lines.push({ text: `Success!`, color: [110, 255, 150] })
+	}
+
+	return lines
+}
+
+function buildHUDCards() {
+	const lanes = Array.from(new Set(sim.runners.map((r) => r.lane))).sort((a, b) => a - b)
+	const playerLane = sim.game?.enabled ? sim.game.playerLane : null
+	const gameInfo = sim.game?.enabled ? sim.game.getHUDInfo() : null
+
+	lanes.sort((a, b) => {
+		if (a === playerLane) return -1
+		if (b === playerLane) return 1
+		return a - b
+	})
+
+	return lanes.map((lane) => {
+		const baton = sim.getBatonForLane(lane)
+		const P = baton ? sim.runners.find((r) => r.id === baton.holderId) || null : null
+		const R = P ? sim.runners.find((r) => r.lane === lane && r.leg === P.leg + 1) || null : null
+		const isPlayer = lane === playerLane
+
+		return {
+			lane,
+			team: laneToTeamLabel(lane),
+			isPlayer,
+			P,
+			R,
+			gameInfo: isPlayer ? gameInfo : null,
+		}
+	})
+}
+
+function drawHUDCard(card, x, y, w, h) {
+	const headerColor = card.isPlayer ? [255, 235, 140] : [220, 220, 220]
+	const bodyColor = [205, 215, 225]
+	const accentColor = card.isPlayer ? [255, 210, 120] : [150, 185, 220]
+
+	drawHUDPanel(x, y, w, h)
+
+	fill(...headerColor)
+	noStroke()
+	textSize(15)
+	text(`${card.team} / lane ${card.lane}${card.isPlayer ? ' / PLAYER' : ''}`, x + 12, y + 10)
+
+	fill(...accentColor)
+	textSize(12)
+	text(`baton holder: ${card.P ? `leg${card.P.leg}` : '-'}`, x + 12, y + 30)
+
+	let yy = y + 50
+	drawRunnerHUDBlock('P', card.P, x + 12, yy, bodyColor)
+	yy += 48
+	drawRunnerHUDBlock('R', card.R, x + 12, yy, bodyColor)
+	yy += 48
+
+	if (card.gameInfo) {
+		fill(180, 220, 255)
+		textSize(12)
+		const offerLabel = card.gameInfo.canOfferNow ? 'yes' : 'no'
+		text(`game: p=${card.gameInfo.pStage}(${card.gameInfo.pStageLabel})  r=${card.gameInfo.rStage}(${card.gameInfo.rStageLabel})  offer=${offerLabel}`, x + 12, yy)
+	}
+}
+
+function drawRunnerHUDBlock(label, runner, x, y, colorValue) {
+	fill(...colorValue)
+	noStroke()
+	textSize(12)
+
+	if (!runner) {
+		text(`${label}: none`, x, y)
+		return
+	}
+
+	text(
+		`${label}: leg${runner.leg}  race=${runner.dist.toFixed(1)}m  run=${runner.runDistance.toFixed(1)}m  phase=${runner.phase.toFixed(2)}`,
+		x,
+		y,
+	)
+	text(
+		`   omega=${runner.omega.toFixed(2)} (ind ${runner.individualOmegaComponent.toFixed(2)} + inter ${runner.interpersonalOmegaComponent.toFixed(2)}, N=${runner.syncPartnerCount})  stride=${runner.stride.toFixed(2)} (ind ${runner.individualStrideComponent.toFixed(2)} x coef ${runner.strideScale.toFixed(2)})`,
+		x,
+		y + 16,
+	)
+}
+
+function drawHUDPanel(x, y, w, h) {
+	stroke(255, 255, 255, 60)
+	strokeWeight(1)
+	fill(10, 18, 28, 210)
+	rect(x, y, w, h, 10)
+}
+
+function drawHUDTextLine(line, x, y) {
+	fill(...line.color)
+	noStroke()
+	textSize(12)
+	text(line.text, x, y)
+}
+
+function laneToTeamLabel(lane) {
+	if (!lane) return '-'
+	return TEAM_LABELS[lane - 1] ?? `Lane ${lane}`
 }
 
 function draw() {
@@ -154,7 +275,7 @@ function draw() {
 
 	view.beginDraw()
 	view.drawTrackBase()
-	view.drawMarks(sim.marks)
+	view.drawMarks(sim.getVisibleMarks())
 	view.drawEntities(sim) // ★ 見た目はtrack.js側で更新
 	view.endDraw()
 
