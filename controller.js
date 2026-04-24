@@ -28,8 +28,9 @@ export class InteractionController {
 			const inP = sim.isRunnerInZone(passer, zone)
 			const inR = sim.isRunnerInZone(receiver, zone)
 			const shouldRaiseArm = receiver._is_running && inP && inR && 0 < gap && gap < this.raiseArmLead_m
+			const forcedWaitReady = receiver.receiverBrakeActive
 
-			if (shouldRaiseArm) {
+			if (shouldRaiseArm || forcedWaitReady) {
 				receiver.enterReceiveReady()
 			} else if (receiver._is_receive_ready) {
 				receiver.exitReceiveReady()
@@ -51,6 +52,7 @@ export class InteractionController {
 			baton.attachTo(receiver)
 			passer.stop()
 			passer.exitOfferPose()
+			receiver.resetReceiverBrake()
 			receiver.exitReceiveReady()
 			receiver._is_passing = false
 		}

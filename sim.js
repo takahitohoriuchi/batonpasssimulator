@@ -3,13 +3,21 @@ import { InteractionController } from './controller.js'
 import { GameController } from './gameController.js'
 
 export class Simulation {
+	static get WAIT_CUE_MS() {
+		return 500
+	}
+
+	static get RECEIVER_BRAKE_DECAY_PER_SEC() {
+		return 2.0
+	}
+
 	constructor(track) {
 		this.track = track
 
 		this.player = { paused: false, speed: 1.0 }
 		this.t = 0
 		this.interpersonal = {
-			enabled: false,
+			enabled: true,
 			passer: {
 				syncMode: 'sameTeamNext',
 				rangeM: 400.0,
@@ -50,6 +58,10 @@ export class Simulation {
 		this.refreshAllRunnerKinematics()
 		this.pushHistory()
 		this.failureMessage = ''
+	}
+
+	static get TARGET_TAU_DOT() {
+		return -0.5
 	}
 
 	firstLegStartS(lane) {
@@ -163,16 +175,26 @@ export class Simulation {
 		this.pushHistory()
 	}
 
-	refreshAllRunnerKinematics() {
+	refreshAllRunnerKinematics({ dt = 1 / 60, commitTauState = false } = {}) {
 		for (const r of this.runners) {
+			r.tauToReceiver = null
+			r.tauToZoneEnd = null
+			r.tauToReceiverRate = null
 			r.refreshKinematics({
 				interpersonalOmegaComponent: 0.0,
-				interpersonalStrideComponent: 0.0,
+				interpersonalStrideFactor: this.interpersonal.enabled && r.receiverBrakeActive ? r.receiverBrakeStrideFactor : 1.0,
 				syncPartnerCount: 0,
 			})
 		}
 
-		if (!this.interpersonal.enabled) return
+		if (!this.interpersonal.enabled) {
+			for (const r of this.runners) {
+				r.waitCueActive = false
+				r.prevTauToReceiver = null
+				r.resetReceiverBrake()
+			}
+			return
+		}
 
 		for (const r of this.runners) {
 			const { config, partners } = this.getSynchronizationContext(r)
@@ -184,10 +206,167 @@ export class Simulation {
 
 			r.refreshKinematics({
 				interpersonalOmegaComponent: coupling,
-				interpersonalStrideComponent: 0.0,
+				interpersonalStrideFactor: 1.0,
 				syncPartnerCount: partnerCount,
 			})
 		}
+
+		this.applyPasserStrideInterpersonal({ dt, commitTauState })
+		this.applyReceiverStrideInterpersonal({ dt, commitState: commitTauState })
+	}
+
+	applyPasserStrideInterpersonal({ dt, commitTauState }) {
+		const activePasserIds = new Set()
+		const activeReceiverIds = new Set()
+
+		for (const passer of this.getCurrentPassers()) {
+			activePasserIds.add(passer.id)
+			const receiver = this.runners.find((r) => r.lane === passer.lane && r.leg === passer.leg + 1) || null
+			const ctx = this.getPasserStrideInterpersonalContext(passer, receiver, dt)
+			if (ctx.waitCueActive && !passer.waitCueActive) {
+				passer.waitCueUntilMs = performance.now() + Simulation.WAIT_CUE_MS
+			}
+
+			passer.waitCueActive = ctx.waitCueActive
+			passer.tauToReceiver = ctx.tauPR
+			passer.tauToZoneEnd = ctx.tauRB
+			passer.tauToReceiverRate = ctx.tauDot
+
+			passer.refreshKinematics({
+				interpersonalOmegaComponent: passer.interpersonalOmegaComponent,
+				interpersonalStrideFactor: ctx.strideFactor,
+				syncPartnerCount: passer.syncPartnerCount,
+			})
+
+			if (receiver) {
+				activeReceiverIds.add(receiver.id)
+				if (ctx.activateReceiverBrake) {
+					receiver.receiverBrakeActive = true
+					receiver.enterReceiveReady()
+				}
+			}
+
+			if (commitTauState) {
+				passer.prevTauToReceiver = Number.isFinite(ctx.tauPR) ? ctx.tauPR : null
+			}
+		}
+
+		if (!commitTauState) return
+
+		for (const runner of this.runners) {
+			if (!activePasserIds.has(runner.id)) {
+				runner.waitCueActive = false
+			}
+			if (!activePasserIds.has(runner.id)) {
+				runner.prevTauToReceiver = null
+			}
+			if (!activeReceiverIds.has(runner.id) && this.getRunnerRelayRole(runner) !== 'receiver') {
+				runner.resetReceiverBrake()
+			}
+		}
+	}
+
+	applyReceiverStrideInterpersonal({ dt, commitState }) {
+		for (const receiver of this.getCurrentReceivers()) {
+			if (!receiver.receiverBrakeActive) continue
+
+			const nextFactor = commitState
+				? Math.max(0.0, receiver.receiverBrakeStrideFactor - Simulation.RECEIVER_BRAKE_DECAY_PER_SEC * dt)
+				: receiver.receiverBrakeStrideFactor
+
+			if (commitState) {
+				receiver.receiverBrakeStrideFactor = nextFactor
+			}
+
+			receiver.enterReceiveReady()
+			receiver.refreshKinematics({
+				interpersonalOmegaComponent: receiver.interpersonalOmegaComponent,
+				interpersonalStrideFactor: nextFactor,
+				syncPartnerCount: receiver.syncPartnerCount,
+			})
+		}
+	}
+
+	getPasserStrideInterpersonalContext(passer, receiver, dt) {
+		const empty = { strideFactor: 1.0, waitCueActive: false, activateReceiverBrake: false, tauPR: null, tauRB: null, tauDot: null }
+		if (!receiver) return empty
+		if (!receiver._is_running) return empty
+
+		const zone = this.zones[passer.leg - 1]
+		if (!zone) return empty
+
+		const vPBase = passer.speed()
+		const vR = receiver.speed()
+		const gap = this.forwardRaceDistanceMeters(passer.dist, receiver.dist)
+		const zoneRemaining = Math.max(0.0, zone.end - receiver.dist)
+
+		if (!(gap > 0) || !(vPBase > 0)) {
+			return empty
+		}
+
+		if (vR > vPBase) {
+			return {
+				strideFactor: 1.0,
+				waitCueActive: true,
+				activateReceiverBrake: true,
+				tauPR: null,
+				tauRB: this.safeTime(zoneRemaining, vR),
+				tauDot: null,
+			}
+		}
+
+		if (!(vPBase > vR)) {
+			return { strideFactor: 1.0, waitCueActive: false, activateReceiverBrake: false, tauPR: null, tauRB: this.safeTime(zoneRemaining, vR), tauDot: null }
+		}
+
+		const tauPR = this.safeTime(gap, vPBase - vR)
+		const tauRB = this.safeTime(zoneRemaining, vR)
+		const prevTau = passer.prevTauToReceiver
+		const tauDot = Number.isFinite(prevTau) && dt > 0 ? (tauPR - prevTau) / dt : null
+
+		if (tauPR >= tauRB) {
+			return { strideFactor: 1.0, waitCueActive: true, activateReceiverBrake: true, tauPR, tauRB, tauDot }
+		}
+
+		if (!(tauDot <= -1.0)) {
+			return { strideFactor: 1.0, waitCueActive: false, tauPR, tauRB, tauDot }
+		}
+
+		const strideFactor = this.solveStrideInterpersonalFactor({
+			vPBase,
+			vR,
+			gap,
+			prevTau,
+			dt,
+		})
+
+		const adjustedTauPR = this.safeTime(gap, vPBase * strideFactor - vR)
+		const adjustedTauDot = Number.isFinite(prevTau) && dt > 0 ? (adjustedTauPR - prevTau) / dt : null
+
+		return {
+			strideFactor,
+			waitCueActive: false,
+			tauPR: adjustedTauPR,
+			tauRB,
+			tauDot: adjustedTauDot,
+		}
+	}
+
+	solveStrideInterpersonalFactor({ vPBase, vR, gap, prevTau, dt }) {
+		if (!(Number.isFinite(prevTau) && prevTau > 0 && dt > 0 && vPBase > 0)) {
+			return 1.0
+		}
+
+		const targetTau = prevTau + Simulation.TARGET_TAU_DOT * dt
+		if (!(targetTau > 0)) {
+			return 1.0
+		}
+
+		const desiredRelativeSpeed = gap / targetTau
+		const desiredPasserSpeed = vR + desiredRelativeSpeed
+		const minKeepingCatch = Math.min(0.999, Math.max(0.0, (vR + 1e-6) / vPBase))
+		const rawFactor = desiredPasserSpeed / vPBase
+		return Math.max(minKeepingCatch, Math.min(1.0, rawFactor))
 	}
 
 	getSynchronizationContext(runner) {
@@ -282,6 +461,16 @@ export class Simulation {
 			.filter(Boolean)
 	}
 
+	forwardRaceDistanceMeters(fromDist, toDist) {
+		return ((toDist - fromDist) % 400 + 400) % 400
+	}
+
+	safeTime(distance, speed) {
+		if (!(distance >= 0)) return null
+		if (!(speed > 1e-6)) return Infinity
+		return distance / speed
+	}
+
 	isWithinSyncRange(aRunner, bRunner, rangeM) {
 		return Math.abs(this.shortestRaceDistanceMeters(aRunner.dist, bRunner.dist)) <= rangeM
 	}
@@ -369,8 +558,11 @@ export class Simulation {
 	}
 
 	step(dtBase) {
-		this.refreshAllRunnerKinematics()
-		if (this.player.paused) return
+		const dt = dtBase * this.player.speed
+		if (this.player.paused) {
+			this.refreshAllRunnerKinematics({ dt, commitTauState: false })
+			return
+		}
 		this.stepFrame(dtBase)
 	}
 
@@ -393,7 +585,7 @@ export class Simulation {
 		const sp = this.player.speed
 		this.t += dtBase * sp
 
-		this.refreshAllRunnerKinematics()
+		this.refreshAllRunnerKinematics({ dt: dtBase * sp, commitTauState: false })
 
 		for (const r of this.runners) {
 			r.prevDist = r.dist
@@ -421,7 +613,7 @@ export class Simulation {
 			this.controller.step(this)
 		}
 
-		this.refreshAllRunnerKinematics()
+		this.refreshAllRunnerKinematics({ dt: dtBase * sp, commitTauState: true })
 		this.pushHistory()
 	}
 
@@ -445,7 +637,15 @@ export class Simulation {
 				interpersonalOmegaComponent: r.interpersonalOmegaComponent,
 				syncPartnerCount: r.syncPartnerCount,
 				individualStrideComponent: r.individualStrideComponent,
-				interpersonalStrideComponent: r.interpersonalStrideComponent,
+				interpersonalStrideFactor: r.interpersonalStrideFactor,
+				tauToReceiver: r.tauToReceiver,
+				prevTauToReceiver: r.prevTauToReceiver,
+				tauToZoneEnd: r.tauToZoneEnd,
+				tauToReceiverRate: r.tauToReceiverRate,
+				waitCueActive: r.waitCueActive,
+				waitCueUntilMs: r.waitCueUntilMs,
+				receiverBrakeActive: r.receiverBrakeActive,
+				receiverBrakeStrideFactor: r.receiverBrakeStrideFactor,
 				phase: r.phase,
 				l: r.l,
 				dist: r.dist,
@@ -498,7 +698,7 @@ export class Simulation {
 			Object.assign(this.interpersonal.receiver, st.interpersonal.receiver ?? {})
 		}
 
-		this.refreshAllRunnerKinematics()
+		this.refreshAllRunnerKinematics({ commitTauState: false })
 
 		this.batons = st.batons.map((b) => new Baton(b))
 
@@ -533,6 +733,13 @@ export class Simulation {
 			r.runDistance = 0.0
 
 			r.phase = 0.0
+			r.tauToReceiver = null
+			r.prevTauToReceiver = null
+			r.tauToZoneEnd = null
+			r.tauToReceiverRate = null
+			r.waitCueActive = false
+			r.waitCueUntilMs = 0
+			r.resetReceiverBrake()
 
 			r._is_running = r.leg === 1
 			r._is_raised_arm = false
@@ -562,7 +769,7 @@ export class Simulation {
 		this.player.paused = true // reset後はPAUSEのまま
 
 		this.game?.reset()
-		this.refreshAllRunnerKinematics()
+		this.refreshAllRunnerKinematics({ commitTauState: true })
 
 		this.history = []
 		this.pushHistory()

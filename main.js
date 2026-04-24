@@ -124,7 +124,7 @@ function drawHUD() {
 
 	const cards = buildHUDCards()
 	if (cards.length > 0) {
-		const cardH = 158
+		const cardH = 192
 		const startY = pad + headerH + gap
 		const cardsPerCol = Math.max(1, Math.floor((height - startY - pad) / (cardH + gap)))
 
@@ -209,7 +209,7 @@ function drawHUDCard(card, x, y, w, h) {
 
 	let yy = y + 50
 	drawRunnerHUDBlock('P', card.P, x + 12, yy, bodyColor)
-	yy += 48
+	yy += 62
 	drawRunnerHUDBlock('R', card.R, x + 12, yy, bodyColor)
 	yy += 48
 
@@ -237,10 +237,23 @@ function drawRunnerHUDBlock(label, runner, x, y, colorValue) {
 		y,
 	)
 	text(
-		`   omega=${runner.omega.toFixed(2)} (ind ${runner.individualOmegaComponent.toFixed(2)} + inter ${runner.interpersonalOmegaComponent.toFixed(2)}, N=${runner.syncPartnerCount})  stride=${runner.stride.toFixed(2)} (ind ${runner.individualStrideComponent.toFixed(2)} x coef ${runner.strideScale.toFixed(2)})`,
+		`   omega=${runner.omega.toFixed(2)} (ind ${runner.individualOmegaComponent.toFixed(2)} + inter ${runner.interpersonalOmegaComponent.toFixed(2)}, N=${runner.syncPartnerCount})`,
 		x,
 		y + 16,
 	)
+	text(
+		`   pitch=${runner.pitch.toFixed(2)}  stride=${runner.stride.toFixed(2)} (ind ${runner.individualStrideComponent.toFixed(2)} x inter ${runner.interpersonalStrideFactor.toFixed(2)} x coef ${runner.strideScale.toFixed(2)})`,
+		x,
+		y + 32,
+	)
+
+	if (label === 'P' && (runner.waitCueActive || runner.tauToReceiver !== null || runner.tauToZoneEnd !== null || runner.tauToReceiverRate !== null)) {
+		text(
+			`   tauPR=${formatHudNumber(runner.tauToReceiver)}  tauRB=${formatHudNumber(runner.tauToZoneEnd)}  dtau=${formatHudNumber(runner.tauToReceiverRate)}${runner.waitCueActive ? '  WAIT' : ''}`,
+			x,
+			y + 48,
+		)
+	}
 }
 
 function drawHUDPanel(x, y, w, h) {
@@ -260,6 +273,13 @@ function drawHUDTextLine(line, x, y) {
 function laneToTeamLabel(lane) {
 	if (!lane) return '-'
 	return TEAM_LABELS[lane - 1] ?? `Lane ${lane}`
+}
+
+function formatHudNumber(value) {
+	if (value === null || value === undefined) return '-'
+	if (value === Infinity) return 'inf'
+	if (!Number.isFinite(value)) return '-'
+	return value.toFixed(2)
 }
 
 function draw() {

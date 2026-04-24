@@ -35,8 +35,17 @@ export class Runner {
 		this.omega = 0.0
 
 		this.individualStrideComponent = 0.0
-		this.interpersonalStrideComponent = 0.0
+		this.interpersonalStrideFactor = 1.0
 		this.stride = 0.0
+
+		this.tauToReceiver = null
+		this.prevTauToReceiver = null
+		this.tauToZoneEnd = null
+		this.tauToReceiverRate = null
+		this.waitCueActive = false
+		this.waitCueUntilMs = 0
+		this.receiverBrakeActive = false
+		this.receiverBrakeStrideFactor = 1.0
 
 		this._is_running = isRunning
 
@@ -78,7 +87,11 @@ export class Runner {
 		return this._is_receive_ready || this._is_offer_pose ? 0.9 : 1.0
 	}
 
-	refreshKinematics({ interpersonalOmegaComponent = this.interpersonalOmegaComponent, interpersonalStrideComponent = this.interpersonalStrideComponent, syncPartnerCount = this.syncPartnerCount } = {}) {
+	refreshKinematics({
+		interpersonalOmegaComponent = this.interpersonalOmegaComponent,
+		interpersonalStrideFactor = this.interpersonalStrideFactor,
+		syncPartnerCount = this.syncPartnerCount,
+	} = {}) {
 		this.individualOmegaComponent = individualOmegaComponentByRunDistance(this.runDistance)
 		this.interpersonalOmegaComponent = interpersonalOmegaComponent
 		this.syncPartnerCount = syncPartnerCount
@@ -86,8 +99,8 @@ export class Runner {
 
 		const baseStride = individualStrideBaseComponentByRunDistance(this.runDistance)
 		this.individualStrideComponent = baseStride * this.poseStrideFactor()
-		this.interpersonalStrideComponent = interpersonalStrideComponent
-		this.stride = this.strideScale * (this.individualStrideComponent + this.interpersonalStrideComponent)
+		this.interpersonalStrideFactor = interpersonalStrideFactor
+		this.stride = this.strideScale * this.individualStrideComponent * this.interpersonalStrideFactor
 	}
 
 	enterReceiveReady() {
@@ -100,6 +113,11 @@ export class Runner {
 	exitReceiveReady() {
 		this._is_receive_ready = false
 		this._is_raised_arm = false
+	}
+
+	resetReceiverBrake() {
+		this.receiverBrakeActive = false
+		this.receiverBrakeStrideFactor = 1.0
 	}
 
 	enterOfferPose() {
@@ -221,10 +239,6 @@ function individualStrideBaseComponentByRunDistance(runDistance) {
 }
 
 function interpersonalOmegaComponentByRunDistance(_runDistance) {
-	return 0.0
-}
-
-function interpersonalStrideComponentByRunDistance(_runDistance) {
 	return 0.0
 }
 

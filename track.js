@@ -313,5 +313,17 @@ export class TrackView {
 				pop()
 			}
 		}
+
+		for (const r of sim.runners) {
+			if (!(r.waitCueUntilMs > performance.now())) continue
+			const p = track.sToXY(r.lane, r.s)
+			push()
+			noStroke()
+			fill(110, 220, 255)
+			textSize(16)
+			textAlign(CENTER, CENTER)
+			text('待って！', p.x, p.y - 1.45)
+			pop()
+		}
 	}
 }

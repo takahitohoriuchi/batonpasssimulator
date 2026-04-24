@@ -80,7 +80,7 @@ export class GameController {
 	}
 
 	call(P, R) {
-		if (this.pStage !== 0 || this.rStage !== 1) return
+		if (this.pStage !== 0 || (this.rStage !== 1 && this.rStage !== 2)) return
 		this.called = true
 		this.pStage = 1
 		this.haiUntilMs = performance.now() + 500
@@ -113,6 +113,7 @@ export class GameController {
 		P.stop()
 		P._is_passing = false
 		R._is_passing = false
+		R.resetReceiverBrake()
 		R.exitReceiveReady()
 
 		this.successMessage = true // ★ Success
@@ -189,6 +190,10 @@ export class GameController {
 		this._resetOnPSwitch(P.id)
 
 		// ★ call後、Rが 3π/2 を跨いだ瞬間にもらうポーズ
+		if (R.receiverBrakeActive && R._is_receive_ready && this.rStage === 1) {
+			this.rStage = 2
+		}
+
 		if (this.called && this.rStage === 1) {
 			const target = (3 * Math.PI) / 2
 
