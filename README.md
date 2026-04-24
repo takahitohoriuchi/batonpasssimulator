@@ -44,10 +44,10 @@ GUI の `Game > Enable Game` を ON にし、`Summon > Teams (A-H)` の `Player 
 ### 基本の流れ
 
 1. `Summon!` でランナーを出す
-2. `Control` キーで R を出走させる
+2. R 操作用キーで R を出走させる
 3. `Enter` キーで P が「はい！」と声をかける
 4. 条件がそろうと、P は自動で差し出し姿勢に入る
-5. `Control` キーでもう一度入力して、R がバトンをつかむ
+5. R 操作用キーでもう一度入力して、R がバトンをつかむ
 6. `Enter` キーでもう一度入力して、P がバトンを手放す
 
 ### キー操作
@@ -60,9 +60,11 @@ GUI の `Game > Enable Game` を ON にし、`Summon > Teams (A-H)` の `Player 
   - 1フレーム戻す
 - `R`
   - 今の GUI 設定を保ったまま、レースを最初からやり直す
-- `Control`
+- `Control` / `Tab`
   - R の出走
   - バトン把持
+  - Mac では `Control`
+  - Windows では `Tab`
 - `Enter`
   - P の声かけ
   - バトン手放し
@@ -95,9 +97,9 @@ GUI の `Game > Enable Game` を ON にし、`Summon > Teams (A-H)` の `Player 
 2. `Summon` で `D` と `1-2` だけを有効にする
 3. `Summon!` を押す
 4. `Space` で動かす
-5. ゾーンに近づいたら `Control` で R を出走
+5. ゾーンに近づいたら R 操作用キーで R を出走
 6. タイミングを見て `Enter` で「はい！」
-7. 受け取れそうになったら `Control`
+7. 受け取れそうになったら R 操作用キー
 8. 最後に `Enter`
 
 ## ファイル構造

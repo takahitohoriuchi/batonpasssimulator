@@ -149,7 +149,7 @@ export class GameController {
 
 		this._resetOnPSwitch(P.id)
 
-		if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+		if (isReceiverActionKey(e)) {
 			e.preventDefault()
 
 			if (this.rStage === 0) {
@@ -269,4 +269,19 @@ function crossedAngle0to2pi(prev, now, target) {
 	}
 
 	return false
+}
+
+function isReceiverActionKey(e) {
+	if (isWindowsPlatform()) {
+		return e.code === 'Tab'
+	}
+
+	return e.code === 'ControlLeft' || e.code === 'ControlRight'
+}
+
+function isWindowsPlatform() {
+	if (typeof navigator === 'undefined') return false
+
+	const platform = navigator.userAgentData?.platform ?? navigator.platform ?? navigator.userAgent ?? ''
+	return /Win/i.test(platform)
 }
