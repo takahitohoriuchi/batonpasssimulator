@@ -222,6 +222,10 @@ export class Simulation {
 		for (const passer of this.getCurrentPassers()) {
 			activePasserIds.add(passer.id)
 			const receiver = this.runners.find((r) => r.lane === passer.lane && r.leg === passer.leg + 1) || null
+			if (receiver && receiver.dist <= passer.dist) {
+				passer.waitCueActive = false
+				passer.waitCueUntilMs = 0
+			}
 			const ctx = this.getPasserStrideInterpersonalContext(passer, receiver, dt)
 			if (ctx.waitCueActive && !passer.waitCueActive) {
 				passer.waitCueUntilMs = performance.now() + Simulation.WAIT_CUE_MS
@@ -297,7 +301,7 @@ export class Simulation {
 
 		const vPBase = passer.speed()
 		const vR = receiver.speed()
-		const gap = this.forwardRaceDistanceMeters(passer.dist, receiver.dist)
+		const gap = receiver.dist - passer.dist
 		const zoneRemaining = Math.max(0.0, zone.end - receiver.dist)
 
 		if (!(gap > 0) || !(vPBase > 0)) {
