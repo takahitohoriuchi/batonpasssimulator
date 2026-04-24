@@ -1,0 +1,10 @@
+\begin{thebibliography}{}
+
+\bibitem[Knuth 84]{texbook}
+Knuth,~D.~E.: {\em The {{\TeX}book}}, Addison-Wesley (1984)
+
+\bibitem[Lamport 86]{latex}
+Lamport,~L.: {\em {\LaTeX \rm:} {A} Document Preparation System},
+  Addison-Wesley (1986)
+
+\end{thebibliography}

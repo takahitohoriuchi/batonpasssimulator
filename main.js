@@ -64,6 +64,12 @@ function setup() {
 	}
 
 	function onKeyDown(e) {
+		if (e.code === 'KeyR') {
+			e.preventDefault()
+			sim.resetRace()
+			return
+		}
+
 		// Failure中は gameController 側で「何かキーでreset」する
 		if (sim.game?.enabled && sim.failureMessage) {
 			sim.game.onKeyDown(e)

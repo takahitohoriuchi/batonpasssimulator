@@ -31,7 +31,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 			},
 			'restartRace',
 		)
-		.name('Restart Race')
+		.name('Restart Race (R)')
 
 	// ===== ゲーム設定 =====
 	const gameFolder = gui.addFolder('Game')
@@ -167,7 +167,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	foldersToClose.push(interpersonalFolder)
 	interpersonalFolder
 		.add(sim.interpersonal, 'enabled')
-		.name('Enable Sync')
+		.name('Enable Interpersonal')
 		.onChange(() => {
 			sim.refreshAllRunnerKinematics()
 			rebuildGui()

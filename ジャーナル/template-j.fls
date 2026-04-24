@@ -1,0 +1,8 @@
+PWD /Users/takahitohoriuchi/Desktop/研究/リレー研究/ジャーナル
+INPUT /usr/local/texlive/2025/texmf.cnf
+INPUT /usr/local/texlive/2025/texmf-dist/web2c/texmf.cnf
+INPUT /usr/local/texlive/2025/texmf.cnf
+INPUT /usr/local/texlive/2025/texmf-dist/web2c/texmf.cnf
+INPUT /usr/local/texlive/2025/texmf-var/web2c/euptex/platex.fmt
+INPUT sty/template-j.tex
+OUTPUT template-j.log

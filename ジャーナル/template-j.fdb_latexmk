@@ -1,0 +1,18 @@
+# Fdb version 4
+["dvipdf"] 0 "template-j.dvi" "template-j.pdf" "template-j" 0 -1
+  "template-j.dvi" 0 -1 0 "latex"
+  (generated)
+  "template-j.pdf"
+  (rewritten before read)
+["latex"] 1775781828.8359 "sty/template-j.tex" "template-j.dvi" "template-j" 1775781828.97423 2
+  "/usr/local/texlive/2025/texmf-dist/web2c/texmf.cnf" 1749313668 42213 4e2ca030e8e2640502016e9e45868dcb ""
+  "/usr/local/texlive/2025/texmf-var/web2c/euptex/platex.fmt" 1751696816 3601298 a5cfd13a8c4b335c8b052fb005cfdae6 ""
+  "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
+  "jsaiart.cls" 0 -1 0 ""
+  "sty/template-j.tex" 1759726768 3956 0e2ba2f21f0c56e4b4ae213d729d7a84 ""
+  "template-j.aux" 1775781820.83517 32 3985256e7290058c681f74d7a3565a19 "latex"
+  (generated)
+  "template-j.aux"
+  "template-j.dvi"
+  "template-j.log"
+  (rewritten before read)

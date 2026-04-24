@@ -191,18 +191,18 @@ export class Simulation {
 	}
 
 	getSynchronizationContext(runner) {
-		if (!this.interpersonal.enabled || !runner._is_running) {
+		if (!this.interpersonal.enabled || !this.isSynchronizationEligible(runner)) {
 			return { config: { K: 0.0, rangeM: 0.0, syncMode: 'none' }, partners: [] }
 		}
 
 		const role = this.getRunnerRelayRole(runner)
-		if (role === 'passer') {
+		if (role === 'passer' && this.isPasserSynchronizationActive(runner)) {
 			return {
 				config: this.interpersonal.passer,
 				partners: this.getPasserSynchronizationPartners(runner),
 			}
 		}
-		if (role === 'receiver') {
+		if (role === 'receiver' && this.isReceiverSynchronizationActive(runner)) {
 			return {
 				config: this.interpersonal.receiver,
 				partners: this.getReceiverSynchronizationPartners(runner),
@@ -210,6 +210,19 @@ export class Simulation {
 		}
 
 		return { config: { K: 0.0, rangeM: 0.0, syncMode: 'none' }, partners: [] }
+	}
+
+	isSynchronizationEligible(runner) {
+		return runner._is_running && !runner._is_raised_arm
+	}
+
+	isPasserSynchronizationActive(runner) {
+		return this.isSynchronizationEligible(runner)
+	}
+
+	isReceiverSynchronizationActive(runner) {
+		// R は出走した瞬間から同期対象だが、腕上げ状態に入ったら同期しない
+		return this.isSynchronizationEligible(runner)
 	}
 
 	getRunnerRelayRole(runner) {
@@ -239,7 +252,7 @@ export class Simulation {
 			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
 		}
 
-		return candidates.filter((other) => other.id !== runner.id && other._is_running && this.isWithinSyncRange(runner, other, this.interpersonal.passer.rangeM))
+		return candidates.filter((other) => other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.passer.rangeM))
 	}
 
 	getReceiverSynchronizationPartners(runner) {
@@ -254,7 +267,7 @@ export class Simulation {
 			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
 		}
 
-		return candidates.filter((other) => other.id !== runner.id && other._is_running && this.isWithinSyncRange(runner, other, this.interpersonal.receiver.rangeM))
+		return candidates.filter((other) => other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.receiver.rangeM))
 	}
 
 	getCurrentPassers() {

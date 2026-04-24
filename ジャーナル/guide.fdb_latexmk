@@ -1,0 +1,18 @@
+# Fdb version 4
+["dvipdf"] 0 "guide.dvi" "guide.pdf" "guide" 0 -1
+  "guide.dvi" 0 -1 0 "latex"
+  (generated)
+  "guide.pdf"
+  (rewritten before read)
+["latex"] 1775781828.7313 "sty/guide.tex" "guide.dvi" "guide" 1775781828.87326 2
+  "/usr/local/texlive/2025/texmf-dist/web2c/texmf.cnf" 1749313668 42213 4e2ca030e8e2640502016e9e45868dcb ""
+  "/usr/local/texlive/2025/texmf-var/web2c/euptex/platex.fmt" 1751696816 3601298 a5cfd13a8c4b335c8b052fb005cfdae6 ""
+  "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
+  "guide.aux" 1775781820.73086 32 3985256e7290058c681f74d7a3565a19 "latex"
+  "jsai2e.cls" 0 -1 0 ""
+  "sty/guide.tex" 1775781621.36236 36695 ddc7022816ffed8a3e869e8e3a3bffc3 ""
+  (generated)
+  "guide.aux"
+  "guide.dvi"
+  "guide.log"
+  (rewritten before read)

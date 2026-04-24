@@ -1,0 +1,23 @@
+\begin{thebibliography}{}
+
+\bibitem[Goosens 94]{latex-companion}
+Goosens,~M., Mittelbach,~F., and Samarin,~A.: {\em The {\LaTeX} Companion},
+  Addison-Wesley (1994), (邦訳~: The {\LaTeX} コンパニオン,
+  アスキー書籍編集部 監訳, アスキー出版局, (1998))
+
+\bibitem[Goosens 97]{latex-graphics-companion}
+Goosens,~M., Rahtz,~S., and Mittelbach,~F.: {\em The {\LaTeX} Graphics
+  Companion}, Addison-Wesley (1997)
+
+\bibitem[松井 94]{松井}
+松井~正一：jbtxbst.doc, btxbst.doc を翻訳するとともに, 日本語用に修正,
+  追加を加えたもの (1994)
+
+\bibitem[Patashnik 88]{btxhak}
+Patashnik,~O.: Designing {BibTeX} Styles, The part of {BibTeX}'s documentation
+  that's not meant for general users (1988)
+
+\bibitem[中野 96]{中野}
+中野~賢：日本語\LaTeXe{}ブック, アスキー出版局 (1996)
+
+\end{thebibliography}
