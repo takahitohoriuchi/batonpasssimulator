@@ -92,7 +92,7 @@ export class TrackView {
 		this.panX = 0
 		this.panY = 0
 		this.zoomMin = 0.2
-		this.zoomMax = 8.0
+		this.zoomMax = 20.0
 		this.zoomStep = 1.08
 
 		this.isPanning = false
@@ -210,57 +210,41 @@ export class TrackView {
 		}
 	}
 
-	drawEntities(sim) {
+	drawRunnerAndBatonState(runners, batons, { runnerDia = 0.6, alpha = 255, highlightRunnerIds = new Set() } = {}) {
 		const track = this.track
-
-		const runnerDia = 0.6
 		const batonDia = runnerDia
-
 		const armTipByRunnerId = new Map()
 
-		const gameInfo = sim.game?.enabled ? sim.game.getHUDInfo() : null
-		const pinkIds = new Set()
-
-		if (gameInfo?.canOfferNow && gameInfo.P && gameInfo.R) {
-			pinkIds.add(gameInfo.P.id)
-			pinkIds.add(gameInfo.R.id)
-		}
-
-		for (const r of sim.runners) {
+		for (const r of runners) {
 			const eps = 0.05
-
 			const c0 = track.sToXY(r.lane, r.s)
 
 			const p1 = track.sToXY(r.lane, r.s - eps)
 			const p2 = track.sToXY(r.lane, r.s + eps)
-			let tx = p2.x - p1.x,
-				ty = p2.y - p1.y
+			let tx = p2.x - p1.x
+			let ty = p2.y - p1.y
 			const tn = Math.hypot(tx, ty) || 1
 			tx /= tn
 			ty /= tn
 
-			const nx = -ty,
-				ny = tx
-
-			// 1/3走は内側、2/4走は外側
+			const nx = -ty
+			const ny = tx
 			const laneSide = r.leg === 1 || r.leg === 3 ? +1 : -1
 			const lateral = track.laneW * 0.25 * laneSide
 
 			const cx = c0.x + nx * lateral
 			const cy = c0.y + ny * lateral
 
-			// ランナー色
-			if (pinkIds.has(r.id)) fill(255, 170, 210)
-			else fill(255)
+			if (highlightRunnerIds.has(r.id)) fill(255, 170, 210, alpha)
+			else fill(255, 255, 255, alpha)
 
 			noStroke()
 			circle(cx, cy, runnerDia)
 
-			// 腕
-			const rightNormalX = -nx,
-				rightNormalY = -ny
-			const leftNormalX = nx,
-				leftNormalY = ny
+			const rightNormalX = -nx
+			const rightNormalY = -ny
+			const leftNormalX = nx
+			const leftNormalY = ny
 
 			const isRightArm = r.leg === 1 || r.leg === 3
 			const ax = isRightArm ? rightNormalX : leftNormalX
@@ -275,19 +259,17 @@ export class TrackView {
 			const tipX = baseX + tx * armLen
 			const tipY = baseY + ty * armLen
 
-			stroke(255, 255, 0)
+			stroke(255, 255, 0, alpha)
 			strokeWeight(0.16)
 			line(baseX, baseY, tipX, tipY)
 
 			armTipByRunnerId.set(r.id, { x: tipX, y: tipY })
 		}
 
-		// 各チームのバトンを全部描く
-		for (const baton of sim.batons) {
+		for (const baton of batons) {
 			const tip = armTipByRunnerId.get(baton.holderId)
-
 			noStroke()
-			fill(160, 255, 0)
+			fill(160, 255, 0, alpha)
 
 			if (tip) {
 				circle(tip.x, tip.y, batonDia)
@@ -296,6 +278,35 @@ export class TrackView {
 				circle(bp.x, bp.y, batonDia)
 			}
 		}
+	}
+
+	drawEntities(sim) {
+		const track = this.track
+		const runnerDia = sim.visual.runnerDia_m ?? 0.6
+		const gameInfo = sim.game?.enabled ? sim.game.getHUDInfo() : null
+		const pinkIds = new Set()
+
+		if (gameInfo?.canOfferNow && gameInfo.P && gameInfo.R) {
+			pinkIds.add(gameInfo.P.id)
+			pinkIds.add(gameInfo.R.id)
+		}
+
+		const trailStates = sim.getTrailStates()
+		for (let i = 0; i < trailStates.length; i++) {
+			const state = trailStates[i]
+			const ratio = trailStates.length <= 1 ? 1.0 : i / (trailStates.length - 1)
+			const alpha = 28 + ratio * 112
+			this.drawRunnerAndBatonState(state.runners, state.batons, {
+				runnerDia,
+				alpha,
+			})
+		}
+
+		this.drawRunnerAndBatonState(sim.runners, sim.batons, {
+			runnerDia,
+			alpha: 255,
+			highlightRunnerIds: pinkIds,
+		})
 
 		// 「はい！」表示（主人公チームのみ）
 		if (sim.game?.enabled) {

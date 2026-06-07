@@ -7,6 +7,219 @@
     <style>
       html, body { margin:0; padding:0; background:#111; overflow:hidden; }
       canvas { display:block; }
+
+      .lil-gui {
+        --background-color: rgba(12, 18, 26, 0.92);
+        --title-background-color: rgba(20, 31, 44, 0.98);
+        --widget-color: #173047;
+        --hover-color: #23445f;
+        --focus-color: #2d5e85;
+        --text-color: #e6edf5;
+        --number-color: #8fd3ff;
+        --string-color: #b9e678;
+        --font-size: 12px;
+        --width: 360px;
+
+        border: 1px solid rgba(95, 179, 255, 0.18);
+        border-radius: 14px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+      }
+
+      .lil-gui.root {
+        padding: 6px;
+      }
+
+      .lil-gui .title {
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .lil-gui > .children > .folder {
+        margin-bottom: 8px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .lil-gui > .children > .folder > .title {
+        border-left: 4px solid #5fb3ff;
+        padding-left: 14px;
+        background: linear-gradient(90deg, rgba(23, 51, 82, 0.98), rgba(18, 33, 48, 0.98));
+        box-shadow: inset 0 0 0 1px rgba(95, 179, 255, 0.14);
+      }
+
+      .lil-gui > .children > .folder.open > .title {
+        background: linear-gradient(90deg, rgba(35, 84, 128, 0.98), rgba(20, 42, 62, 0.98));
+      }
+
+      .lil-gui .children {
+        margin-left: 0;
+      }
+
+      .lil-gui > .children > .folder > .children {
+        margin-left: 10px;
+        padding-left: 12px;
+        border-left: 1px solid rgba(95, 179, 255, 0.35);
+      }
+
+      .lil-gui .folder .folder > .children {
+        margin-left: 10px;
+        padding-left: 12px;
+        border-left: 1px dashed rgba(74, 219, 198, 0.34);
+      }
+
+      .lil-gui .folder .folder > .title {
+        font-size: 11px;
+        border-left-width: 3px;
+        border-left-color: #4adbc6;
+        padding-left: 16px;
+        background: linear-gradient(90deg, rgba(12, 86, 86, 0.96), rgba(12, 50, 50, 0.96));
+        box-shadow: inset 0 0 0 1px rgba(74, 219, 198, 0.14);
+      }
+
+      .lil-gui .folder .folder.open > .title {
+        background: linear-gradient(90deg, rgba(18, 118, 118, 0.96), rgba(12, 62, 62, 0.96));
+      }
+
+      .lil-gui .folder .folder .folder > .children {
+        border-left-color: rgba(160, 228, 87, 0.34);
+      }
+
+      .lil-gui .folder .folder .folder > .title {
+        border-left-color: #a0e457;
+        padding-left: 18px;
+        background: linear-gradient(90deg, rgba(72, 112, 20, 0.96), rgba(40, 62, 14, 0.96));
+        box-shadow: inset 0 0 0 1px rgba(160, 228, 87, 0.14);
+      }
+
+      .lil-gui .folder .folder .folder.open > .title {
+        background: linear-gradient(90deg, rgba(96, 142, 26, 0.96), rgba(46, 72, 16, 0.96));
+      }
+
+      .lil-gui > .children > .folder > .title::before,
+      .lil-gui .folder .folder > .title::before,
+      .lil-gui .folder .folder .folder > .title::before {
+        display: inline-block;
+        width: 1.1em;
+        margin-right: 0.25em;
+        font-weight: 800;
+      }
+
+      .lil-gui > .children > .folder > .title::before {
+        content: "◆";
+        color: #8fd3ff;
+      }
+
+      .lil-gui .folder .folder > .title::before {
+        content: "▸";
+        color: #7af2df;
+      }
+
+      .lil-gui .folder .folder .folder > .title::before {
+        content: "•";
+        color: #c6f27a;
+      }
+
+      .lil-gui .controller {
+        border: none;
+        min-height: 26px;
+      }
+
+      .lil-gui .controller:not(.folder) {
+        background: transparent;
+      }
+
+      .lil-gui .controller:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .lil-gui .name {
+        opacity: 0.95;
+      }
+
+      .lil-gui input,
+      .lil-gui select,
+      .lil-gui button {
+        border-radius: 8px;
+      }
+
+      .lil-gui .folder-marker {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.15em;
+        margin-right: 0.35em;
+        font-weight: 800;
+      }
+
+      .lil-gui .folder[data-folder-depth="0"] > .title {
+        border-left: 4px solid #5fb3ff;
+        background: linear-gradient(90deg, rgba(23, 51, 82, 0.98), rgba(18, 33, 48, 0.98));
+        box-shadow: inset 0 0 0 1px rgba(95, 179, 255, 0.14);
+      }
+
+      .lil-gui .folder[data-folder-depth="0"].open > .title {
+        background: linear-gradient(90deg, rgba(35, 84, 128, 0.98), rgba(20, 42, 62, 0.98));
+      }
+
+      .lil-gui .folder[data-folder-depth="0"] > .title .folder-marker {
+        color: #8fd3ff;
+      }
+
+      .lil-gui .folder[data-folder-depth="0"] > .children {
+        border-left: 1px solid rgba(95, 179, 255, 0.35);
+      }
+
+      .lil-gui .folder[data-folder-depth="1"] > .title {
+        border-left: 3px solid #4adbc6;
+        background: linear-gradient(90deg, rgba(12, 86, 86, 0.96), rgba(12, 50, 50, 0.96));
+        box-shadow: inset 0 0 0 1px rgba(74, 219, 198, 0.14);
+      }
+
+      .lil-gui .folder[data-folder-depth="1"].open > .title {
+        background: linear-gradient(90deg, rgba(18, 118, 118, 0.96), rgba(12, 62, 62, 0.96));
+      }
+
+      .lil-gui .folder[data-folder-depth="1"] > .title .folder-marker {
+        color: #7af2df;
+      }
+
+      .lil-gui .folder[data-folder-depth="1"] > .children {
+        border-left: 1px dashed rgba(74, 219, 198, 0.34);
+      }
+
+      .lil-gui .folder[data-folder-depth="2"] > .title,
+      .lil-gui .folder[data-folder-depth="3"] > .title,
+      .lil-gui .folder[data-folder-depth="4"] > .title {
+        border-left: 3px solid #a0e457;
+        background: linear-gradient(90deg, rgba(72, 112, 20, 0.96), rgba(40, 62, 14, 0.96));
+        box-shadow: inset 0 0 0 1px rgba(160, 228, 87, 0.14);
+      }
+
+      .lil-gui .folder[data-folder-depth="2"].open > .title,
+      .lil-gui .folder[data-folder-depth="3"].open > .title,
+      .lil-gui .folder[data-folder-depth="4"].open > .title {
+        background: linear-gradient(90deg, rgba(96, 142, 26, 0.96), rgba(46, 72, 16, 0.96));
+      }
+
+      .lil-gui .folder[data-folder-depth="2"] > .title .folder-marker,
+      .lil-gui .folder[data-folder-depth="3"] > .title .folder-marker,
+      .lil-gui .folder[data-folder-depth="4"] > .title .folder-marker {
+        color: #c6f27a;
+      }
+
+      .lil-gui .folder[data-folder-depth="2"] > .children,
+      .lil-gui .folder[data-folder-depth="3"] > .children,
+      .lil-gui .folder[data-folder-depth="4"] > .children {
+        border-left: 1px dashed rgba(160, 228, 87, 0.34);
+      }
+
+      .lil-gui > .children > .folder > .title::before,
+      .lil-gui .folder .folder > .title::before,
+      .lil-gui .folder .folder .folder > .title::before {
+        content: none;
+      }
     </style>
   </head>
   <body>

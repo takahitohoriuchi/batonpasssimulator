@@ -1,13 +1,42 @@
 \documentclass{jsai2e}
 
-\usepackage{graphics}
+\usepackage[dvipdfmx]{graphicx}
 \usepackage{fancybox}
 \usepackage{comment}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{makecell}
+
+\usepackage{xcolor}
+
+% ===== 表示切り替え =====
+\newif\ifshowlabels
+\showlabelstrue
+% \showlabelsfalse
+
+% ===== 色定義 =====
+\definecolor{fixred}{RGB}{200,50,50}
+\definecolor{furu}{RGB}{50,50,200}
+
+% ===== 汎用コマンド =====
+\newcommand{\tagtext}[3]{%
+  \ifshowlabels
+    \textcolor{#1}{#3\textsuperscript{\textsf{[#2]}}}%
+  \else
+    #3%
+  \fi
+}
+
+% ===== 色＋ラベルのセット =====
+\newcommand{\fix}[2]{\tagtext{fixred}{#1}{#2}}
+\newcommand{\furu}[2]{\tagtext{furu}{#1}{#2}}
+% \showlabelstrue
+\showlabelsfalse
 
 %%%%% blindreview廃止に関して（2023/04 Matsubayashi）
 %\usepackage{color}
 %\def\RED#1{\textcolor{red}{#1}}  
-\usepackage{graphicx}
 
 %%%%% LaTeXなどのロゴの定義
 \makeatletter
@@ -52,191 +81,934 @@
 \raggedbottom
 \pagestyle{plain}
 
-\jtitle{陸上競技リレー種目における巧みなバトンパス：シミュレーションツールの制作をとおした創造的知性の理解}
-\etitle{How to Use a \LaTeX{} Style File (\StyleFile)}
+\jtitle{陸上競技リレー種目における巧みなバトンパス：ゲーム型シミュレーションシステムの制作をとおした創造的知性の理解}
+\etitle{Dexterous Baton Passing in Track and Field Relays: Understanding Creative Intelligence through the Design of a Game-Based Simulation System}
 
 \author{%
-\longname{人工知能学会}{\StyleFile{}担当}{JSAI Style File Group}
-\affiliation{人工知能学会}%
-{Japanese Society for Artificial Intelligence}%
-{editor@ai-gakkai.or.jp,
-http://www.ai-gakkai.or.jp/jsai/journal/download.html}}
+\name{堀内}{隆仁}{TakahitoHoriuchi}
+\affiliation{東京都立大学}{Tokyo Metropolitan University}{74k4h170h@gmail.com}
+\and
+\name{古川}{大晃}{Hiroaki Furukawa}
+\affiliation{京都工芸繊維大学}{Kyoto Institute of Technology}{furukawa.hiroaki95@gmail.com}
+\and
+\name{児玉}{謙太郎}{Kentaro Kodama}
+\affiliation{東京都立大学}{Tokyo Metropolitan University}{kodama\_k@tmu.ac.jp}
+}
 
 \rm
 \begin{summary}
-This is the guide for \StyleFile{},
-for the Journal of Japanese Society for Artificial Intelligence. 
+This study aims to understand baton passing in relay races in athletics as a form of human improvisational and creative intelligence. 
+To this end, we prototyped a game-based system that simulates the baton-passing process.
+Runners were modeled as oscillators moving through space, and interactions between runners were formulated as coupled oscillators (for pitch coordination). 
+On this basis, baton passing was described as a sequence of events occurring between runners. 
+Through the processes of design and practical use, several characteristic features of the system emerging between the passer and the receiver were identified.
 \end{summary}
 
 \begin{document}
 \maketitle
 
-\section{まえがき}\label{sec:intro}
-
-このスタイルファイル（\StyleFile{}）は，人工知能学会の論文などの原
-稿を作成するためのものです．
-アスキー版日本語 p\TeX{}のVersion p2.1.5以降を対象としています．
-\LaTeX209も利用できますが（\ref{latex209}），最終組版はp\TeX{}
-で行うため，完全に同じ出力は保証できません．
-
-このスタイルファイルでは本誌の組版体裁に従って調整していますので，
-スタイルファイルの変更は一切しないでください．
-
-\LaTeXe 用のクラスファイルとテンプレートです．
-\medskip
-
-{\small
-\begin{tabular}{ll}
-\hline
-\ltt{jsaiart.cls}    & 論文用クラスファイル\\
-\ltt{jsaiopt.cls}    & 論文以外のクラスファイル\\
-\ltt{jsai2e.cls}     & 共通部分用クラスファイル\\\hline
-\ltt{template-j.tex} & 日本語論文用テンプレート\\
-%\ltt{template-e}     & 英語論文用テンプレート\\ %%2023年に英語論文はNGCに統合しました
-\ltt{template-o}     & 論文以外のテンプレート\\\hline
-\end{tabular}
+\section{はじめに}\label{sec:intro}
+陸上競技4×100mリレー（以下，リレーと略記）では，全速力で走る二者間で，走速度や四肢の動きを協調させてバトンを受け渡す．
+\fix{}{
+事前に戦略を練ったとしても，二人のピッチや歩幅，走速度は毎回厳密に同じわけではない．
+両隣を走る相手チームの影響も受けてしまう．
+\ref{sec:real}でも述べるが，そんな予測不可能な状況のただなかで，声や掌に起こるバトンの感触をも頼りにしながら互いに調整し「その場で創り出す」のが，バトンパスというものである．
+著者らはバトンパスを即興的で創造的な知性の好例であると捉えている．
 }
-\medskip
 
-補助用の\ltt{jsai2e.cls}は必要ですので
-\ltt{jsaiart.cls} や \ltt{jsaiopt.cls} と同じ場所においてください．
 
-\subsection{このガイドの構成}
+バトンパスは現場のアスリートらにとっても，実に難しい技術であり，
+ミスのない巧みなバトンパスを達成する戦術や戦略は明らかではない．
+本番に近いクオリティでバトンパス練習を数多く積めれば良いだろうが，体力的な限界もあって，それはなかなか叶わない．
+バトンパスはリレーの現場に立ちはだかる大きな課題である．
 
-人工知能学会の原稿は次のように分類できます．
-\medskip
+\fix{}{
+\subsection{構成的方法}\label{subsec:constructive_approach}
+複雑で謎めいたバトンパスの知性を理解するために本研究は，構成的方法をとる.
+構成的方法は，システムをつくって知性を理解する方法論（または試み）である．
+ここで「システムをつくる」とは，最終的なプロダクトだけではなく，システムをつくるまでの取り組みや，制作したシステムを使ってみたりなど，一連の試行錯誤プロセス全体を指す．
+プロセス全体から対象の知性を理解しようとするのだ．
+これは\cite{nakashima2006}の説く（広義の）構成的方法にあたる．
+知能研究における一人称研究\cite{suwa_hori:2015}や，デザイン研究におけるリサーチ・スルー・デザイン\cite{frayling1994}など，
+関連分野でも，広義の構成的方法とみなせる（根本思想を同じくする）手法は注目されている．
 
+}
+
+研究プロセスに重きを置く以上，狭義の構成的方法では必ずしも扱われてこなかった「誰がつくるか/研究するか」ということも捨ておけない側面である．
+本論文の著者三名の背景を述べる．
+第一著者・堀内は，陸上十種競技選手として自ら「走り」を学ぶ一人称研究\cite{horiuchi2020}を遂行してきた．
+第二著者・古川は，陸上長距離選手として箱根駅伝に出場する水準で競技をしながら，陸上競技走者の認知を研究している．
+堀内も古川も短距離専門選手ではないにしろ，陸上競技の大会でリレーを複数回走った経験をもつ．
+第三著者・児玉は，陸上未経験者であり，生態心理学や複雑系科学などシステム論の枠組みと手法をもちいて，環境に適応する身体の研究をしている．
+
+本研究で我々は，バトンパスをコンピュータ上で表現するシステムを制作することをとおして，バトンパスの知性について理解を深め，モデル化し，記述する．
+制作するシステムは，知能研究者，現場のアスリートやコーチら（さらにはAIが），バトンパスという知性を学習するためのものである．
+
+
+
+\subsection{4×100mリレーとは}\label{subsec:what_is_relay}
+
+リレーでは，チーム4人で順にバトンを受け渡しながら約100mずつ合計400mトラック一周を走り，タイムをチームどうしで競う（\ref{fig:batonzone}）．
+チームごとに走るレーンは決まっている．第一走者は90〜120m曲走路を走り，バトンゾーン\footnote{
+  正式名称は「テイクオーバーゾーン」である．\fix{}{本稿ではバトンゾーン}と書く．
+}
+1（90〜120m地点）で第二走者へとパスする．
+第二走者走は80〜130m直走路を走り，バトンゾーン2（180〜210m地点）で第三走者へとパスする．
+第三走者は80〜130m曲走路を走り，バトンゾーン3（280〜310m地点）で第四走者へとパスする．
+第四走者がゴールラインまでの90〜120mの直走路を走る．
+
+\begin{figure*}[t]
 \begin{center}
-\begin{small}
-\begin{tabular}{@{}lp{17zw}@{}}
-\hline
-\noalign{\vskip1mm}
-論文形式 & 原著論文，萌芽論文，速報論文，特集論文，招待論文，
-特集，小特集，報告，解説，AIマップ\\
-\noalign{\vskip1mm}
-\hline
-\noalign{\vskip1mm}
-論文以外の形式 & 巻頭言，研究室紹介，随想，イベントだより，
-会議報告，用語解説，書評，文献紹介，カレンダー，
-私のブックマーク\\
-\noalign{\vskip1mm}
-\hline
-\end{tabular}
-\end{small}
+\includegraphics[width=0.7\textwidth]{../images/relay_2.eps}
 \end{center}
-\medskip
+\capwidth=90mm %
+\caption{4×100mリレーの走路とバトンゾーン}
+\label{fig:batonzone}
+\end{figure*}
 
-\ref{japanese}〜\ref{nonpaper}で，はそれぞれ，
-日本語の論文形式の原稿，
-%英語の原稿，%%2023年に英語論文はNGCに統合しました
-論文以外の形式の原稿に書式と固有の注意点について述べます．
+バトンパスは，現場のアスリートやコーチにとっても，奥深い技術である．
+各バトンパスは，定められた30mのバトンゾーン内で完結させなければ失格となる．
+バトンパスの巧拙/成否が記録を左右する．
+世界大会の決勝ですら，バトンを落としたり受け渡しがゾーン内で間に合わなかったりして失格になることも少なくない．
+逆に言えば，チーム4人の単体走力が低くとも，巧みなバトンパスによって相手チームに先着することもできる．
+2016年リオオリンピック陸上男子リレー決勝
+\footnote{
+  動画はこちら．\url{https://www.youtube.com/watch?v=WaRRfc8GSZw}（2026年4月30日閲覧）
+}がそれだ．
+日本チームは，メンバー4人の100mシーズンベストタイムを単純合算した値だと，決勝8チーム中6番目に位置していた\cite{noguchi_online}．
+だがそのビハインドを覆し，日本は銀メダルに輝いたのだ．
 
-\ref{sec:generalnote} は，句読点，脚注，相互参照，拡張マクロについ
-ての注意点です．
-%句読点と相互参照は特に
-\ref{sec:figtab}は図表の注意で，\textsc{PostScript}ファイルの取り
-込みに関する規定などを述べます．
-\ref{sec:equation}は数式に関する注意です．\ltt{amsmath}を用いる場
-合は特に注意してください．
-\ref{sec:bib}は参考文献に関する注意点で，
-最後の\ref{submit}は，提出するファイルに関して述べます．
+\subsection{リレーの既存研究}\label{subsec:prestudy_relay}
 
-\section{日本語の論文形式の原稿}\label{japanese}
+% 4×100mリレーにおけるバトンパス技術の研究は，ハイスピードカメラ等を用いた実証的な運動学的分析\cite{li2025}\cite{matsubayashi2022}\cite{zarebska2021}と，走速度プロファイルに基づいた数理的なシミュレーション研究\cite{karlsson2024}\cite{wardsmith2002}の両面から発展を遂げてきた．
 
-\ltt{jsaiart.cls} を使用し，オプションとして（\verb|[]|内）下記の
-ものを指定します．指定がなければ \ltt{originalpaper}になります．
-\medskip
+リレーにおけるバトンパス技術の研究は，ハイスピードカメラ等を用いた実証的な運動学的分析\cite{li2025,matsubayashi2022,zarebska2021}と，\furu{}{走速度変化}に基づいた数理的なシミュレーション研究\cite{karlsson2024,wardsmith2002}の両面から発展を遂げてきた．
 
+% 実証的研究においては，日本や中国，ポーランドのナショナルチームを対象として，バトンゾーン内でのバトンをもらう走者の加速度合いやバトンパス所要時間，バトンの差出しにともなう「利得時間」や「利得距離」といった指標がリレー走破タイムに関連する重要な変数として特定されている\cite{li2025,matsubayashi2022,zarebska2021}．
+\furu{}{
+実証的研究では，日本や中国，ポーランドの国内代表選手らを対象として，リレー時の走者位置・バトン位置が分析された．
+その結果，バトンゾーン内での各走者の速度，バトンパス所要時間，バトンの差出し距離の大きさで得られる「利得時間」や「利得距離」といった指標がリレー走破タイムに関連する重要な変数として挙げられている\cite{li2025,matsubayashi2022,zarebska2021}．
+}
+数理的アプローチにおいては，\cite{wardsmith2002}による走速度や位置を主要な制御因子とした決定論的な最適化モデルがある．
+近年では走者の走速度の不確実性を確率変数として組み込み，失格リスクと走破タイムのトレードオフを分析する確率的モデルも検討されている\cite{karlsson2024}．
+このように，速度や位置，タイミングなど，バトン移動速度を最大化するための戦略的構造が明らかになりつつある．
+
+上記のように，主に走者やバトンの位置・速度といった運動学的な変数でバトンパスは理解されてきたものの，いかにして変動の大きな環境の中でバトンパスを成立させているのか，その即興的・創造的知性に関する理解は不足している．
+その知性システムを理解するためには，既存研究のような運動学的変数やその戦略構造のみならず，そもそもバトンパスがいかなるイベントの連なりとして成り立つ現象なのか，詳細に記述し，整備することが必要である．
+% \subsection{目的と方法}\label{subsec:object_and_method}
+% リレーという複雑系現象を理解するために，構成論的アプローチをとる．
+% 構成論的アプローチ（ファイファー，池上先生，中島先生，）とは，ある現象に対して，その現象のモデルを構成することによって，XXXXある現象を実現するためのXXX．対象のメカニズムの解明とは違う．
+% 論理学的に言えば，ある命題に対して，十分条件を示すのであり，必要条件を明らかにするものではない．
+% 構成論的アプローチは，対象を観察・分析し記述する，という科学的方法とは相補的なものである．
+% 複雑系で謎めいた現象に対して，対象メカニズムの解明に至らずとも，「明確化」することができるのが構成論的アプローチのひとつの意義である．
+
+% 本研究では，現場の支援を重要視する．
+% 研究者が理解するためにシステムを作る，というのみならず，現場の学習者が理解するためのシステムであり，ゲーム型にした．
+% 構成論的アプローチでは通常，役にたつものが作られるわけではないが，ーーーーーーーーーーーー（中島先生，知能の物語）．
+
+% 本研究の目的は，ーーーである．
+% そのために本論文では，リレーバトンパスを表現するシステムをつくったシミュレーションということよりもむしろ，著者らがつくり，議論し，やってみて，という一連のプロセスを研究成果と考え，そうしたプロセスも適宜示すXXX．
+
+
+\section{バトンパスをイベント系列化する}\label{sec:real}
+
+\fix{}{
+著者らは，バトンパスの動画をつぶさに観察したり，自身の経験を振り返ったりしながら議論を重ね，
+バトンパスをイベント系列として分節・記述した（\ref{fig:batonpass}）．
+% \ref{fig:batonpass}を本研究の一成果であると位置づける．
+}
+
+\ref{fig:batonpass}左側の連続写真は，\ref{subsec:what_is_relay}で触れた2016年リオオリンピックの男子リレー決勝の日本チームの第三・四走者間のバトンパスシーンを8局面に分けたものである
+\footnote{
+  2016年当時のルールでは，Rの出走位置は現行ルールと同じであったが，バトンゾーンは現行ルールのゾーン30mのうち後半20mだけであった（シビアだった）．
+  だが本章の説明の本質部分に影響を及ばさないので，2016年の事例をもちいた．
+}．
+\ref{fig:batonpass}右側は，連続写真の各局面を，俯瞰視点でひとつのダイアグラムとして簡略表現したものである\footnote{
+  「アキレスと亀」から着想を得た表現方法でもある．
+}．
+第三・四走者をそれぞれP，Rと表記している．
+本稿では，バトンを渡す人をP，もらう人をRと略記する．
+\ref{fig:batonpass}内では当該局面XのPとRの位置を「$PX$」の形で示している．
+次段落で\ref{fig:batonpass}をもちいてバトンパスのシーンを説明する．
+バトンパスの難しさを前面に出すために「生々しく描写」してみたい．
+次段落の説明で（）内に書いた数字は，上記各局面を示す．
+
+\begin{figure}[t]
 \begin{center}
+\includegraphics[width=\linewidth]{../images/baton_real_1.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{バトンパスシーンのイベント系列（局面遷移）}
+\label{fig:batonpass}
+\end{figure}
+
+
+Rはスタート姿勢をとりながら，Pが走ってくるのを観ている．
+Pが高速で駆け込んでくる（1）．Pが「マーカ」（次段落参照）を通過する．
+瞬間，Rは「今だ！」と思い切りスタートを切る（2）．
+加速する．
+後ろは振り返らない．
+PがRに追いついてくる（3）．
+PはRの背中に「はい！」と声で合図する（4）．
+Rは振り返らずに，走りを維持しながらすぐさま左手だけ後ろに伸ばし，掌にバトンの感触がくるのを待ち受ける（5）．
+すかさずPがバトンを差し出す．
+Pの右手がRの左手にバトンを押し込む（6）．
+Rが握る（7）．
+Pが手離す（8）．
+こうしてバトンが渡る．
+わずか数秒のできごとである．
+
+PとRのピッチや歩幅は毎回厳密に同じわけではない．
+両者は高速状況下で互いの動きに即興的に応答しているのである．
+両隣には相手チームも走っていることを忘れてはならない．
+Rからすれば，Pを待ち構えているとき（\ref{fig:batonpass}の1〜2），むこうから8〜9人が一斉に雪崩こんでくる．
+凄まじい勢いである
+\footnote{
+経験者である私（第一著者・堀内）は強く実感している．
+また，陸上YouTuber「ケンちゃん」は「短距離走の恐怖の瞬間」のひとつとして，リレーにおいて第一走者が自分（第二走者）に駆け込んでくることを挙げている．
+  \url{https://youtube.com/shorts/2tc2BrK8B10?si=zsga_FaetqDJKguV}．2026年4月30日閲覧．
+}．
+Rは「雪崩」のなかから「味方のエネルギー」をうまく感じとり，適切なタイミングで走りださねばならない．
+そのためにPは適切位置にマーカを置いている．
+だがマーカがあるにもかかわらず，焦って早く出たり，一歩目でバランスを崩して出だしが遅れることがある．
+さらに言うならば，いつでもマーカ「だけ」を頼りに走り出すのがベストとも限らない．
+
+もしもPがRに追いつきそうにないと判断したならば，Pはすかさず「待って！」と声をかける．
+声を聞いたRが急減速することで，なんとかしてパスをつなぐ．
+バトンゾーンをオーバーして失格になる事態だけは避けねばならないから，いたしかたないことなのだ．
+また逆に，PがRに対して速すぎたならば，衝突を防ぐために，Pは減速せざるを得ない
+\footnote{
+  陸上界では俗に「バトンが詰まる」と表現する．
+  「とりあえず予選レースを勝ち上がればよい」場合，あえてバトンを詰める「安全バトン」戦略をとることもある．
+}．
+
+とりわけ著者らが議論するなかで明確化したのは，バトンパス時にはRがPに追いつくだけではなくPとRの走速度がほぼ等しい必要があるという点や，
+\fix{}{局面6・7・8の順序ある触覚的相互作用の存在である．}
+
+以上のようにバトンパスは，高速かつ短時間で，全身をつかって，競争しながら協調して達成される．
+しかも，視・聴・触覚が入り乱れたマルチモーダルなインタラクションとして成り立つ．
+走者は互いの距離や速度，四肢の動きさえも「阿吽の呼吸」で調整するのである．
+その場で即興的に創り出される身体的知性である．
+
+では，こうしたインタラクションとしての知性は，システムとしてどのように表現可能になるのか？
+著者らは，参照可能な概念を探った．
+
+\section{参照概念}\label{sec:concepts}
+生態心理学で環境との相互作用を記述する概念として扱われる「光学的情報$\tau$」と「位相$\phi$」に著者らは着眼した．
+\subsection{光学的情報$\tau$（タウ）}\label{subsec:tau}
+$\tau$とはなにか．
+Leeら\cite{lee1982}は走幅跳を事例に$\tau$を実証的に説明した．
+走幅跳選手は，数10m助走してきた勢いそのままに奥行きわずか20cmの踏切板を踏み当てることができる．
+どうやって「歩幅調整」しているのか？
+
+$\tau$とは，助走による移動にともない生じる光学的流動すなわち，網膜に映る踏切板像の膨張率\footnote{
+網膜像の大きさの変化率に対する網膜像の大きさ$z/\dot{z}$であり，情報的には，対象までの接近速度に対する対象までの距離$x/v$に等しい．
+}である．
+$\tau$は「このままいくとあと何秒で踏切版に到達するか」（予測到達時間）という情報に等しい．
+歩幅調整は$\tau$を絶えず知覚しそれに即応しさえすれば可能で，「踏切板までの距離と自身の速度」という情報を知る必要はない（計算論的にみれば$\tau$はそれら情報と等価である）のだとLeeは主張する
+\footnote{
+助走中の残り歩数Nは決まっているから，$τ$を$N$で割った「次の一歩に必要な空中時間」もわかる.
+空中時間は接地の垂直インパルスで制御できる．
+したがって，最後の数歩で接地の垂直インパルスを調整すれば，助走最後で踏切板を踏み当てられるというわけだ.
+}．
+$\tau$による歩幅調整はとくに助走最後の数歩で顕著に表れる．
+
+またLee\cite{Lee1998}は，$\tau$の時間変化率$\dot{\tau}$にも着目している．
+対象に向かって移動し到達直前で無理なく停止する（激しい衝突をすることなく，追いつく）ためには，
+$\dot{\tau}$を$-0.5$以上で一定になるよう速度制御すればよいことを論じた（$\dot{\tau}=-1$で一定ならば，等速で接近してゆき衝突することを意味する）．
+
+
+バトンパスにおいても$\tau$は，歩幅調整や声をかけるタイミングの判断といったことに関わると考えられる．
+
+
+\subsection{位相}\label{subsec:phase}
+近年，近接して走る者どうしの「個人間協調」の研究が動的システム理論の枠組みを中心に広がりを見せている．
+そのなかで，周期運動としての走運動を振動子に見立てることで「位相（phase）」を計算する研究群がある．
+\cite{varlet2015,furukawa2024}は，100m走の世界記録や日本記録が誕生したレース\footnote{
+世界記録レース：\url{https://www.youtube.com/watch?v=DiJKCQSkjOw}
+
+日本記録レース：\url{https://www.youtube.com/watch?v=0eyhH9RhRbI}
+
+ともに2026年5月3日閲覧．
+}
+において，\furu{}{近接して走る2人のステップタイミングの相対的な位相関係を計算し，}同期現象を発見している．
+\cite{varlet2015,furukawa2024}は個人間に生じる協調的作用がパフォーマンス（記録）に影響を及ぼす可能性も指摘している．
+
+リレーを対象にしたこうした動的な位相関係の研究は依然としてみられないが，リレーのバトンパスは相手チームと競走しながらもPとRとで「協調」して達成する行為であることからも，位相の観点はバトンパスの記述に有用であろう．
+パスはPとRが互いに対側の腕を同時に差し出して達成される．
+これは「PとRの腕振りの位相関係」そのものである．
+
+
+\section{制作したバトンパスシステム}\label{sec:tool}
+著者らは，\ref{sec:real}\ref{sec:concepts}の内容を拠りどころにしながら，バトンパスを表現するシステムを制作した．
+\subsection{システム概要}\label{subsec:overview_tool}
+
+\begin{figure*}[t]
+\begin{center}
+\includegraphics[width=0.7\textwidth]{../images/sim_overview.eps}
+\end{center}
+\capwidth=\linewidth %
+\caption{システムの画面（左上はHUD，右側はGUIパネル）}
+\label{fig:tool_overview}
+\end{figure*}
+
+バトンパスを体験するゲーム型システムとして設計した（\ref{fig:tool_overview}）．
+システム（シミュレーション）を作ることをとおして知性を理解するというだけではなく，
+現場のアスリートやコーチの学習を促すことをも目的に織り込んでいるからである．
+webブラウザで動作する．
+Javascript・HTML・CSSをもちいて開発しており，アニメーション部分にはp5.js，GUI部分にはlil-guiをもちいた．
+
+陸上トラックを俯瞰する視点でリレーがアニメーションされる．
+ユーザは俯瞰カメラの注視点移動とズームイン/アウトを操作できる．
+\ref{fig:tool_overview}は，バトンゾーン1が映るよう，俯瞰カメラをズームインさせた状態である．
+バトンゾーンは同レーン内の白線〜白線の区間であり，その間のグレー線はスタートから100m地点を表す．
+
+4レーンの走者のみ示している．
+走者は白い小円で表現される．
+小円の端から，進行方向に伸縮する黄色い線が描かれ，これが腕（腕振り）を示す．
+一・三走者は右腕，二・四走者は左腕のみ描かれる．
+いずれもバトンを握るほうの腕である．
+バトンは黄緑色の小円で描かれる．
+走者のモデルについては\ref{subsec:runner_model}で述べる．
+
+\ref{fig:tool_overview}は，\ref{sec:real}で示した局面2〜3に相当する．
+右下の白線からRが走り出したのちにPがRとの距離を詰め，PR間距離が3.4mまで縮まった局面だ．
+Pはバトンをもった右腕を前に振り切り，Rは左腕を前に振り込んでいる．
+
+画面左上にHUD（Head Up Display）が表示され，\ref{table:hud1}・\ref{table:hud2}に示すとおり各変数の値が表示される．
+
+% NOTE:HUD表１
+% NOTE:HUD表１
+\begin{table}[t]
+\centering
+\caption{HUDに表示されるシミュレーション全体の情報}
+\label{table:hud1}
 \small
-\begin{tabular}{@{}ll@{}}
+\begin{tabularx}{\columnwidth}{lX}
 \hline
-\noalign{\vskip1mm}
-\tt{originalpaper}   & 原著論文（Original Paper）\\
-\tt{exploratorypaper}& 萌芽論文（Exploratory Research Paper）\\
-\tt{shortpaper}      & 速報論文（Short Paper）\\
-\tt{specialpaper}    & 特集論文（Special Paper）\\
-\tt{invitedpaper}    & 招待論文（Invited Paper）\\
-\tt{Specialissue}    & 特集（Special Issue）\\
-\tt{specialissue}    & 小特集（Special Issue）\\
-\tt{interimreport}   & 報告（An Interim Report）\\
-\tt{surveypaper}     & 解説（Survey Paper）\\
-\tt{aimap}           & AIマップ（AI map）\\
+項目 & 内容 \\
+\hline
+再生速度 & 現実時間に対するシミュレーション時間の比 \\
+再生状態 & 再生 / 一時停止 \\
+個人間相互作用成分の有無 & ピッチ・歩幅に対する相互作用成分の有無 \\
+\hline
+\end{tabularx}
+\end{table}
 
-\noalign{\vskip1mm}
+
+% NOTE:HUD表2
+% NOTE:HUD表2
+\begin{table}[t]
+\centering
+\caption{HUDに表示される各走者の状態}
+\label{table:hud2}
+\small
+\begin{tabularx}{\columnwidth}{lX}
+\hline
+項目 & 下位項目 \\
+\hline
+
+位置・運動状態
+& 絶対位置・走破距離 \\
+& 位相 $\phi$（\ref{subsubsec:oscillator}） \\
+& 角速度 $\omega$（\ref{subsubsec:oscillator}） \\
+
+\hline
+
+ピッチ
+& 個人内成分（\ref{subsubsec:intra_component}） \\
+& 個人間相互作用成分（\ref{subsubsec:pitch_inter}） \\
+& スケーリング係数（\ref{subsubsec:locomotion}） \\
+
+\hline
+
+歩幅
+& 個人内成分（\ref{subsubsec:intra_component}） \\
+& 個人間相互作用成分（\ref{subsubsec:length_inter}） \\
+& スケーリング係数（\ref{subsubsec:locomotion}） \\
+
+\hline
+
+知覚情報
+& 光学的情報タウ $\tau$（\ref{subsec:tau}） \\
+
+\hline
+
+局面情報
+& 局面状態 \\
+
+\hline
+\end{tabularx}
+\end{table}
+
+
+画面右側にGUI（Graphical User Interface）が表示される．
+GUIには\ref{tab:gui-items}で示す設定項目を設けた．
+
+
+\begin{table}[t]
+\footnotesize
+\centering
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.08}
+\caption{GUIパネルの項目一覧}
+\label{tab:gui-items}
+\begin{tabularx}{\columnwidth}{@{}p{0.20\columnwidth}p{0.32\columnwidth}X@{}}
+\hline
+\textbf{Section} & \textbf{Item} & \textbf{Description} \\
+\hline
+Controls & --- & GUI全体の最上位パネル．以下の各セクションを含む． \\
+\hline
+Camera & Overview & カメラを全景表示に戻す \\
+Camera & Zoom: 1--2 zone & バトンゾーン1付近へズーム \\
+Camera & Zoom: 2--3 zone & バトンゾーン2付近へズーム \\
+Camera & Zoom: 3--4 zone & バトンゾーン3付近へズーム \\
+Camera & Follow Baton & バトン追従カメラのON/OFF． \\
+Camera & Follow Zoom & 追従時のズーム倍率を設定 \\
+\hline
+Display & Show HUD & HUD表示/非表示を切り替え \\
+\hline
+Playback & Speed (x0.1--1.0) & シミュレーション速度設定 \\
+Playback & Restart Race (R) & 現在のGUI設定を保ったままレースをやり直す \\
+\hline
+Game & Enable Game & ゲームモードのON/OFF \\
+\hline
+Summon & Teams (A--H) $>$ Player Team & 操作対象となるプレイヤーチームを選ぶ\\
+Summon & Teams (A--H) $>$ A--H & 召喚するチームを選ぶ\\
+Summon & Segments $>$ 1--2 / 2--3 / 3--4 & 召喚する区間を選ぶ\\
+Summon & Segments $>$ All legs & 全区間一括で召喚対象にする \\
+Summon & Summon! & 選択したチーム・区間の走者を召喚する \\
+\hline
+Runner Params & Lane $n$ $>$ Leg $m$ & 走者ごとの個別設定 \\
+Runner Params & pitch coef & 角速度（ピッチ）に掛かるスケーリング係数$\gamma$ \\
+Runner Params & stride coef & ストライドに掛かるスケーリング係数$\gamma$\\
+% Runner Params & start marker offset (m) & 非ゲームモード時のみ表示．第2走以降の出走マーカー位置を調整する． \\
+Runner Params & arm length $l$ (m) & 腕長パラメータ．受け渡し可能距離の計算に関与\\
+% Runner Params & extra reach (m) & 追加のリーチ量を設定する． \\
+\hline
+Interpersonal & Enable Interpersonal & 個人間相互作用成分のON/OFF\\
+Interpersonal & Passer (P) $>$ Partners & Pが誰と同期するか\\
+Interpersonal & Passer (P) $>$ Range (m) & Pの同期対象空間範囲\\
+Interpersonal & Passer (P) $>$ K & Pの同期強度パラメータ\\
+Interpersonal & Receiver (R) $>$ Partners & Rが誰と同期するか\\
+Interpersonal & Receiver (R) $>$ Range (m) & Rの同期対象空間範囲\\
+Interpersonal & Receiver (R) $>$ K & Rの同期強度パラメータ \\
+\hline
+\end{tabularx}
+\end{table}
+
+
+\subsection{走者のモデル}\label{subsec:runner_model}
+本システムの特徴は，走者を「空間移動する振動子」としてモデル化する点である．
+振動子は四肢の動きを表す．
+
+\subsubsection{振動子モデル（位相）}\label{subsubsec:oscillator}
+本研究では四肢は連動しているものとすることで，\ref{fig:phase}のとおり，ひとりの走者をひとつの振動子で表現する（つまり，\fix{}{現行システムでは}ひとりの走者の四肢間の相互作用については扱わない）．
+腕振りの体側から体側までの「1往復」が，脚ステップの左足接地から次の左足接地までの「$2$歩」に相当し，
+それらを振動子の1周期つまり$2π$[rad]に対応\furu{}{させる．}
+腕振りを，この位相$\phi$の正弦$\sin\phi$をとることによって（それの時間変化としての）黄色伸縮線（\ref{subsec:overview_tool}）で表現する．
+時間の流れにともなって振動子の位相が更新される．
+
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=\linewidth]{../images/graph.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{走者の振動子モデル（$\phi$は位相）}
+\label{fig:phase}
+\end{figure}
+
+\subsubsection{走者の空間移動（ピッチと歩幅）}\label{subsubsec:locomotion}
+走者の空間移動も，位相をもとに定義する．
+\fix{}{
+走者の位置$x$[m]は走速度$v$[m/s]をもちいて式\ref{eq:x}のように更新する．
+$\Delta t$はシミュレーション内部の時間最小単位であり，GUIパネルで設定する再生速度に応じて変化する．
+\begin{equation}
+  \label{eq:x}
+  x(t+\Delta t) = x(t) + v \Delta t
+\end{equation}
+}
+一般に$v$ [m/s] は，歩幅 $L$ [m] とピッチ $F$ [歩/s] をもちいて式\ref{eq:v}で表される．
+\begin{equation}
+  \label{eq:v}
+\fix{}{v = F * L}
+\end{equation}
+
+ピッチ $F$ [歩/s]と振動子の位相速度（角速度）$\omega$ [rad/s] は比例する（式\ref{eq:pitch}）．
+\begin{equation}
+  \label{eq:pitch}
+  F = \frac{1}{\pi}  \omega
+\end{equation}
+
+
+ピッチと歩幅はそれぞれ\fix{}{個人内成分（intra）}と個人間相互作用成分（inter）に分けて表現する（式\ref{eq:pitch_division}・\ref{eq:stride_division}）．
+$\gamma$ はGUIのスライダで設定するスケーリング係数である．
+\begin{equation}
+  \label{eq:pitch_division}
+F = (F^{intra} + F^{inter}) \gamma
+\end{equation}
+
+\begin{equation}
+  \label{eq:stride_division}
+L = L^{intra} L^{inter} \gamma
+\end{equation}
+
+\subsubsection{ピッチと歩幅の個人内成分}\label{subsubsec:intra_component}
+個人内成分は本人の走破距離$x$を引数とする関数として定めた（式\ref{eq:pitch_intra}・\ref{eq:stride_intra}・\ref{table:pitch_coef}・\ref{table:stride_coef}・\ref{fig:pitch}・\ref{fig:stride}）．
+これは，1991年世界陸上男子100m決勝レース8人の10mごとのピッチと歩幅のデータ\cite{ae1992} をもちいて，
+その10mごとの8人の平均値を求め，その10点を3次スプライン曲線で補間することで連続関数化したものである．
+100m以降は90-100mの変化を踏まえ外挿的に定義し，ピッチは一定値に指数関数的に収束させ，歩幅は一定値とした．
+
+% NOTE:ピッチの個人内成分式
+\begin{equation}
+  \label{eq:pitch_intra}
+F^{\mathrm{intra}}(x)=
+\begin{cases}
+\begin{aligned}
+& a_k(x-x_k)^3 + b_k(x-x_k)^2 \\
+& \quad + c_k(x-x_k) + d_k \\
+& \text{for } x_k \le x < x_{k+1},
+\end{aligned}\\
+\begin{aligned}
+& 4.20 + 0.25e^{-0.233(x-100)} \\
+& \text{for } x>100,
+\end{aligned}
+\end{cases}
+\end{equation}
+
+% NOTE: 歩幅の個人内成分式
+\begin{equation}
+  \label{eq:stride_intra}
+L^{\mathrm{intra}}(x)=
+\begin{cases}
+\begin{aligned}
+& a_k(x-x_k)^3 + b_k(x-x_k)^2 \\
+& \quad + c_k(x-x_k) + d_k \\
+& \text{for } x_k \le x < x_{k+1},
+\end{aligned}\\
+\begin{aligned}
+& 2.53 \\
+& \text{for } x>100,
+\end{aligned}
+\end{cases}
+\end{equation}
+
+% NOTE:ピッチの個人内成分表
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.95}
+\caption{ピッチ関数 $F^{intra}(x)$ の係数}
+\label{table:pitch_coef}
+\begin{tabular}{ccrrrr}
+  
+\hline
+$k$ & $x_k$ & $a_k$ & $b_k$ & $c_k$ & $d_k$ \\
+\hline
+1 & 10 & $-2.79{\times}10^{-4}$ & 0 & $1.01{\times}10^{-1}$ & 3.90 \\
+2 & 20 & $3.62{\times}10^{-4}$ & $-8.38{\times}10^{-3}$ & $1.68{\times}10^{-2}$ & 4.63 \\
+3 & 30 & $-4.40{\times}10^{-5}$ & $2.48{\times}10^{-3}$ & $-4.22{\times}10^{-2}$ & 4.38 \\
+4 & 40 & $-4.61{\times}10^{-5}$ & $1.16{\times}10^{-3}$ & $-4.54{\times}10^{-2}$ & 4.52 \\
+5 & 50 & $-2.77{\times}10^{-5}$ & $-2.23{\times}10^{-4}$ & $-3.60{\times}10^{-2}$ & 4.67 \\
+6 & 60 & $8.33{\times}10^{-6}$ & $-1.06{\times}10^{-3}$ & $-4.88{\times}10^{-2}$ & 4.80 \\
+7 & 70 & $4.44{\times}10^{-5}$ & $-8.05{\times}10^{-4}$ & $-6.74{\times}10^{-2}$ & 4.71 \\
+8 & 80 & $-7.28{\times}10^{-6}$ & $5.27{\times}10^{-4}$ & $-7.02{\times}10^{-2}$ & 4.45 \\
+9 & 90 & $-1.03{\times}10^{-5}$ & $3.09{\times}10^{-4}$ & $-6.14{\times}10^{-2}$ & 4.45 \\
 \hline
 \end{tabular}
+\end{table}
+
+% NOTE:歩幅の個人内成分表
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.95}
+\caption{歩幅関数 $L^{intra}(x)$ の係数}
+\label{table:stride_coef}
+\begin{tabular}{ccrrrr}
+  
+\hline
+$k$ & $x_k$ & $a_k$ & $b_k$ & $c_k$ & $d_k$ \\
+\hline
+1 & 10 & $-4.88{\times}10^{-6}$ & 0 & $6.27{\times}10^{-2}$ & 1.37 \\
+2 & 20 & $-7.44{\times}10^{-5}$ & $-1.46{\times}10^{-4}$ & $6.13{\times}10^{-2}$ & 1.92 \\
+3 & 30 & $7.24{\times}10^{-5}$ & $-2.38{\times}10^{-3}$ & $3.60{\times}10^{-2}$ & 2.37 \\
+4 & 40 & $-1.64{\times}10^{-5}$ & $-2.06{\times}10^{-4}$ & $1.02{\times}10^{-2}$ & 2.49 \\
+5 & 50 & $4.93{\times}10^{-5}$ & $-6.97{\times}10^{-4}$ & $-1.08{\times}10^{-2}$ & 2.48 \\
+6 & 60 & $1.00{\times}10^{-5}$ & $7.83{\times}10^{-4}$ & $-9.98{\times}10^{-3}$ & 2.40 \\
+7 & 70 & $-3.64{\times}10^{-5}$ & $1.08{\times}10^{-3}$ & $8.68{\times}10^{-3}$ & 2.43 \\
+8 & 80 & $3.27{\times}10^{-5}$ & $-7.31{\times}10^{-6}$ & $1.94{\times}10^{-2}$ & 2.59 \\
+9 & 90 & $-3.25{\times}10^{-5}$ & $9.74{\times}10^{-4}$ & $2.91{\times}10^{-2}$ & 2.53 \\
+\hline
+\end{tabular}
+\end{table}
+
+% ピッチ関数グラフ
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=\columnwidth]{../images/pitch.eps}
 \end{center}
-\medskip
-\noindent
-例えば，原著論文であれば次のようになります．
-\begin{verbfbox}
-\documentclass[originalpaper]{jsaiart}
-\end{verbfbox}
-\noindent
+\capwidth=\textwidth %
+\caption{ピッチの個人内成分$F^{intra}(x)$}
+\label{fig:pitch}
+\end{figure}
 
-\subsection{原稿の書き方}
+% 歩幅関数グラフ
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=\columnwidth]{../images/stride.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{歩幅の個人内成分$L^{intra}(x)$}
+\label{fig:stride}
+\end{figure}
+\subsubsection{ピッチの個人間相互作用成分}\label{subsubsec:pitch_inter}
+ピッチの表現には，蔵本による結合振動子モデル\cite{kuramoto1975}をもちいた（式\ref{eq:oscilator}）．
+ホタル群の明滅や同じ台に乗った複数のメトロノームの拍など，\furu{}{相互作用のある振動子群のふるまいを記述するモデルである．}
+$K$は結合強度（同期の強さ），$N$は\furu{}{振動子}の数である．
+\begin{equation}
+  \label{eq:oscilator}
+\frac{d\phi_i}{dt} = \omega_i + \frac{K}{N}\sum{\sin(\phi_j - \phi_i)}
+\end{equation}
 
-\ref{fig:原稿構成}に原稿の全体構成を示します．
-テンプレートファイル \ltt{template-j.tex} が用意してありますの
-で，これを編集して原稿を作成してください．
+式\ref{eq:oscilator}はある時点の走者（振動子）$i$の位相速度を表し，
+式\ref{eq:pitch_division}と同値である（両辺に$\pi$を乗じたもの．式\ref{eq:pitch}参照）．
+ピッチの個人内成分は式\ref{eq:oscilator}の右辺第一項$\omega$に相当（比例）する．
+したがって，ピッチの個人間相互作用成分は式\ref{eq:oscilator}右辺第二項に対応し，式\ref{eq:pitch_inter}で表せる．
+\begin{equation}
+  \label{eq:pitch_inter}
+F^{inter} = \pi \frac{K}{N}\sum{\sin(\phi_j - \phi_i)}
+\end{equation}
 
-\begin{figure}[tph]
-%\begin{verbFbox}
-\begin{verbfbox}
-\documentclass[originalpaper]{jsaiart}
-\Vol{16}  %%論文誌の巻数 
-\No{6}    %%論文誌の号数  
-\SubNo{c} %%論文番号
-\jtitle{日本語タイトル}
-\etitle{英語タイトル}
-\author{%
- \name{姓}{名}{ローマ字読み}
- \affiliation{日本語所属名}{英語所属名}%
-                             {e-mail,URL}
-\and
- \name{姓}{名}{ローマ字読み}
- \affiliation{日本語所属名}{英語所属名}%
-                             {e-mail,URL}
+ユーザはGUIパネルから$K$と$N$を設定できる．
+$N$は誰と同期するかという相手の範囲を選択する．
+
+\fix{new!}{
+システムにおいてPがRとピッチを同期させるようすを示す（\ref{fig:phase_transition}）．
+Pのみ同期を設定し，$K=0.3$，$R$とのみ同期するようにした．
+R出走直後（左一枚目）はほぼ同位相だったものが，6枚目ではほぼ逆位相になっているのがみてとれる．
 }
 
-\begin{keyword}
-keywords in English
-\end{keyword}
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=\columnwidth]{../images/phase_transition.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{PのピッチがRと同期するようす．（左画像から右画像へ）}
+\label{fig:phase_transition}
+\end{figure}
 
-\begin{summary}
-summary in English
-\end{summary}
-%\setcounter{page}{1}
 
-\begin{document}
-\maketitle
-\section{まえがき}
-%% 原稿の内容（省略）%%
+\subsubsection{歩幅の個人間相互作用成分}\label{subsubsec:length_inter}
+\fix{}{
+Leeらの研究を踏まえ，（\ref{subsec:tau}），歩幅の個人間相互作用成分には$\tau$の考え方をもちいた．
+Pの歩幅個人間相互作用成分は，PがRに対して\furu{}{衝突}を避けるための滑らかな減速調整としてはたらく．
+$\dot{\tau}_{PR}>=-0.5$で一定に保つような減速である．
+まず，$\tau_{PR}$すなわちPがRに到達する予測時間は式\ref{eq:tau_pr}で表せる．
+$x_R$と$x_P$はRとPの位置である．
+}
+
+\fix{}{
+\begin{equation}
+  \label{eq:tau_pr}
+\tau_{PR} = \frac{x_R - x_P}{v_P - v_R}
+\end{equation}
+}
+式\ref{eq:tau_pr}を時間微分し，Pの知覚する$\dot{\tau}_{PR}$を得る（式\ref{eq:taudot_PR}）．
+
+\begin{equation}
+\label{eq:taudot_PR}
+\dot{\tau}_{PR} = -1 -\frac{(x_R - x_P)(a_P - a_R)}{(v_P - v_R)^2}
+\end{equation}
+
+aは加速度である．
+PがRより速く（$v_P>v_R$），ある距離以内（$x_R-x_P <= D$）にいて，$\dot{\tau}_{PR} < -0.5$であれば，
+Pは$\dot{\tau}_{PR} =-0.5$に近づくように歩幅$L^{inter}_P$を狭める，という歩幅調整をおこなう（式\ref{eq:stride_inter_P}）．
+$M_{1}$はスケーリング係数である．
+
+\begin{equation}
+  \label{eq:stride_inter_P}
+  L^{inter}_P(t+\Delta t) = L^{inter}_P(t) - M_{1} (-0.5-\dot{\tau}_{PR})
+\end{equation}
+
+システムの実例で説明する（\ref{fig:stride_sample}）．
+$D=5$[m]，$M_{1}=0.01$に設定しており，どちらもPが69.9m地点にいるとき（8.00秒）にRは出走させている．
+歩幅調整なし（上段）はで89.8m地点で追いつく（9.82秒）が，
+歩幅調整あり（下段）では追いつくのが92.6m地点まで延びる（10.32秒），
+このように歩幅調整が結果に効いてくる．
+
+%歩幅調整のようす
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=0.7\columnwidth]{../images/stridesample.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{Pの歩幅調整のようす（軌跡をつけて表示）}
+\label{fig:stride_sample}
+\end{figure}
+
+
+また，Pが「このままだと，バトンパス前にRがゾーン終端に達する」と判断したならば，「待って!」と声かけしてRに減速してもらう．
+この判断を，$\tau_{RB}$（式\ref{eq:tau_rb}）をもちいて，$\tau_{RB}$と$\tau_{PR}$の大小関係によって表現した（Pがこの関係性と等価な光学的流動を知覚している，と仮説）．
+$\tau_{RB}$は，Rがバトンゾーン終端に到達する予測時間である．
+$B$はバトンゾーン終端を表す．
+\begin{equation}
+  \label{eq:tau_rb}
+\tau_{RB} = \frac{B - x_R}{v_R}
+\end{equation}
+
+
+「待って!」を聞いたRの歩幅個人間相互作用成分（減速）を式\ref{eq:stride_inter_R}で表す．
+$M_{2}$はスケーリング係数である．
+\begin{equation}
+  \label{eq:stride_inter_R}
+  L^{inter}_R(t+\Delta t) = L^{inter}_R(t) + M_{2} \dot{\tau}_{RB}
+\end{equation}
+\subsection{システムの操作方法}
+ゲームでプレイするシナリオと方法を説明する．
+
+\subsubsection{走者の召喚（GUIから操作）}\label{subsubsec:summon}
+デフォルト状態では，4レーンの1・2走者のみ召喚されている．
+GUIパネルより，参加チーム，第何走者を走らせるか，ユーザが操るチーム，を選択する．
+
+
+\subsubsection{ゲームのプレイ方法}\label{subsubsec:play}
+走者を召喚したのち，ゲームをプレイする．
+ゲームは，走者のイベント系列（\ref{sec:real}）のかたちで進む．
+プレイ中のキー操作一覧を\ref{table:key}に示す．
+各イベントの実際のアニメーションと，その発生条件（局面遷移条件）を\ref{fig:game_phase}に示す．
+ユーザは【space】キーを押して再生したのち，キーを押して走者PとRのアクションを制御する．
+
+シミュレーションをベースにしたバトンパス体験型ゲームにするため，イベント発生条件には，ユーザのキー操作によるものと，そうでないものを設けた．
+キー操作を発生条件とするイベントは，Rの出走(2)，Pの声かけ(4)，Rがバトンを握る(7)，Pがバトンを手離す(8)，の4つとした．
+ユーザは，PとRのピッチと歩幅の変化様相（個人内/間成分）のなかで，PとRの上記2イベントずつをうまく制御する．
+タイミングの学習を目論んだ．
+
+イベント5と6の発生を自動にした理由は，走者にとって難易度の低いことだと判断したからである．
+著者のリレー経験から，走者は5と6についてはイベント発生条件を意識しないままに，条件を満たしていたらほぼ自動的に遂行し，満たしていないと遂行しない（例えばPは，Rが遠くにいる状態でバトンを差し出すわけはない）．
+
+しかしだからこそ，システムとしては，イベント発生条件を明確に記述することになった．
+イベント5では，「はい!」を聞いたRが腕を後ろに伸ばして固定する．
+これが起こるのは，走りの腕振りの流れのなかで，「はい!」の後に最初に腕を振り下ろしきった瞬間からである．
+もし「はい!」の瞬間に「振り上げ中」の位相だったならば，そこから振り上げ切って再び振り下ろし，振り下ろし切った瞬間からようやくイベント5が発生するのであり，少なくとも，振り上げ位相から振り下ろし位相へ即座に移行できるわけではない（人間はそんな運動はできない）．
+
+イベント6でPがバトンを差し出すにも，複雑な空間・時間的制約がある．
+Rとの距離が十分近い必要がある．
+Pの自然な走りのなかで，Rの手先までの距離をPの手先が届くぶんだけPが腕を振り込んだ瞬間である．
+少なくともそれは，Pが走りのなかで腕を振り上げ中の位相でなければならない．
+なお，パス時のPR間距離は，従来より「利得距離」\cite{matsubayashi2022}と呼ばれてきた変数である．
+
+% 少なくとも，イベント5と6については，そういう明確化ができた（なお，イベント3はシステム上ではイベントとして扱っていない）．
+
+Rがパス以前にバトンゾーンを超えたり，PがRに完全に追いつく（衝突）と，失敗となる（\ref{fig:failures}）．
+
+\begin{table}[t]
+\centering
+\small
+\caption{キーボードおよびマウス操作（[]内はキーを示す）}
+\label{table:key}
+\begin{tabular}{p{0.42\columnwidth} p{0.52\columnwidth}}
+\hline
+操作 & 内容 \\
+\hline
+【cmd】+マウスホイール（ピンチイン／アウト） & カメラのズームイン／アウト \\
+【cmd】+ドラッグ & カメラ注視点の移動 \\
+【space】 & アニメーション再生/一時停止\\
+【ctrl】 & Rのアクション \\
+【Enter】 & Pのアクション \\
+【s】 & 再度スタート \\
+【右矢印】 & コマ送り \\
+【左矢印】 & コマ戻し \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=\columnwidth]{../images/events.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{各イベントのアニメーションと発生条件}
+\label{fig:game_phase}
+\end{figure}
+
+%失敗のようす
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=0.7\columnwidth]{../images/failures.eps}
+\end{center}
+\capwidth=\textwidth %
+\caption{バトンパス失敗パタン}
+\label{fig:failures}
+\end{figure}
+
+
+
+
+\fix{}{
+\section{システムを使ってみた}
+}
+\fix{}{
+本システムを，異なる背景をもつ著者らで使ってみることで，バトンパス知性とそのシステムに関するさらなる気づきを探った．
+プレイ方法を説明し，30分程度プレイし，互いに気づきを共有した（\ref{fig:comments_authors}）．
+}
+
+\begin{figure}[t]
+\centering
+\footnotesize
+\setlength{\fboxsep}{4pt}
+\ovalbox{%
+\begin{minipage}{0.95\columnwidth}
+
+\vspace{2mm}
+
+\textbf{第一著者・堀内（陸上経験者，開発者）}
+\begin{itemize}\setlength{\itemsep}{0pt}
+  \item 実際のリレーでは自身がRとしてPを待ち構えるとき，Rとマーカの位置関係（その勢いを感じる自身の体感）に志向が支配されるけど，本システムでは鳥瞰的視点から眺めているからか，R出走以前から，「PとRとバトンゾーン終端との位置関係」を強く意識する．
+  R出走キーを押す判断を，「今Rが出走すれば，バトンゾーン終端間際でPがRに到達しそうだ」といった見方が優勢になる感覚がある．
+  このユーザとしての操作体験そのものは，システム内の走者の$\tau$の知覚モデルとはちがうモードな気がする．
+  \item プレイ数をこなすうち，しだいに，Pの走るリズム（位相変化）に促されるようにR出走操作キーを押す感覚も生じた．
+  \item 声かけタイミングは，Rが左腕を振り上げきった瞬間あたりで「はい!」と合図するのが良い
+  \item ゲームだから何度も手軽にトライできる．
+  \item GUIで個人間相互作用成分をOFFにすると，バトンパスは途端に難しくなる．容易にRがゾーンを超えたりPがRに衝突してしまう．．
+  \item 自分ひとりでPとR二役を兼ねたゲーム操作は難しい．「二人プレイ」という仕様にするのも良いかもしれない．
+\end{itemize}
+
+\textbf{第二著者・古川（陸上経験者）}
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item 「受け手をスタート，次は声掛けで，，」などと考えていたら間に合わない．順の想起などをせずに「タンタンタターン」という（ボタンタッピングの）リズムを「体得する」ほかないという感覚が，実際のリレーやその他の運動競技に似ている．
+\item 現在のGUI（俯瞰的視点）だと，2者間の距離に応じた出発タイミングに主にほとんどの注意の認知資源が割かれる（腕振りの位置まで意識が回らない）．
+\item 今回は走路を1次元に絞ってあり（進行方向に対して左右は考えなくてよい），その出発タイミングだけでも難しいのに，リアルではそれに加えて互いの手の位置を3次元的に一致させる必要がある．改めて認知的に高度な操作だと思った．
+\item 実際の手の位相調整はどのようにされているのか改めて気になった．
+\item 実際のリレー中，どのようなことに注意が向けられているのかを初心者から熟練者まで横断的に調査することで，実際のリレー練習に対してより効果的な実用的ツールへと改善していく指針を得られるであろう．
+\end{itemize}
+
+\textbf{第三著者・児玉（陸上未経験者）}
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item リレー（バトンパス）そのものの理解が乏しいせいか，ゲームの操作やゴールの理解に難しさを感じた
+\item R出走の「今だ」というタイミングがピンと来なかった（リレーをするという実体験や身体性の不足？）
+\item PとRという2つの役割もピンと来なかった（それを俯瞰したユーザ視点でしか見れない感じ？）
+\item 成功と失敗のフィードバックが弱いので，ピンと来なかった部分もあるかも？
+\item 将来的には，コントローラが振動するなど，触覚的な情報もあると良いかも？
+\item 走る「足音」や「はい！」「待って！」の掛け声も聴覚情報としてあると分かりやすくなる？
+\item 背後でタウや位相同期のメカニズムが働いているなら，それを画面上に表示しちゃえば，タイミングの学習はしやすい？イメージとしては，タウ（ドット）の理想的な漸近線のグラフや，2つの振動子の相転移（同期）のグラフ？
+\end{itemize}
+
+\end{minipage}
+}
+\caption{著者らのシステム体験をとおした気づき}
+\label{fig:comments_authors}
+\end{figure}
+
+\fix{}
+{開発者である堀内は，アニメーションの俯瞰視点と実際のリレー時の視点の違いによる体験の違いや，
+ゲームのほうが実際よりも手軽に「練習」できる点など，システム体験と実際のリレーとの違いに言及した．
+リレー練習の大変さという現場課題に対して，手軽にシミュレーションできることはそれ自体価値がありそうである．
+また，ひとりでPとRを兼ねることの難しさや，個人間相互作用成分のON/OFFの違いで難易度が変わることにも気づいた．
+さらに，位相の観点から望ましいPの声かけタイミングや，Rの出走操作のタイミングなど，
+システムをとおして実際のリレーの戦略や戦術につながる示唆を得た．
+とくに後者については，Rは出走タイミングをはかる「マーカ」を，「Pとの距離」のみならず「Pの位相」をもうまく感得するためのものとして位置づけることができるのかもしれない．
+そのように位相をも勘案した戦略の可能性が示唆される．
+}
+
+\fix{}{
+古川は，走者を操作するリズムを身体でつかむことの重要性を指摘し，
+俯瞰視点の限界の指摘，
+パス時のPとRの手の三次元的位置と位相の調整という，実際のリレーが本システムのモデルよりも複雑であることを，システムをとおして認識したうえで．
+本システムの実用性向上の方針を考えた．
+}
+
+\fix{}{
+リレー体験をもたない児玉は，ゲームの操作やタスクおよびPとRの役割に「ピン」とこず，使用体験が難しかったことを述べている．
+それに関連して，パスの成/否，マルチモーダル，システム内部状態（$\tau$や位相など）の明示など，
+多様なフィードバックの強化の重要性について発想した．
+}
+
+\fix{}{
+三人とも共通してゲームとしての難しさに言及しており，ゲームとしての設計には改良の余地があることが明らかとなった．
+一般に，この手のシステムの開発や構築を行う工学的研究では，「つくる」までがゴールとされ，論文においても「つくったもの」の報告や記述が主となる．
+いっぽう，本研究では「つくったもの」を「つかう」プロセスまでを研究の射程に入れ，構成的手法の範囲として扱う．
+さらに，開発者・共同研究者（ユーザ）のバックグラウンドが少しずつ異なることで新たな気付きや発見が創発することがあると考え，あえて5章を設け，「つかってみた」プロセスの一端を掲載した．
+}
+
+\fix{}{
+\section{展望}
+}
+
+\fix{}{
+本研究は，リレーにおけるバトンパスの即興的で創造的な知性を，バトンパスをシミュレーションするゲーム型システムで表現した．
+空間移動する振動子モデルによって走者を定義し，走者同士のインタラクションを$\tau$（歩幅調整）と位相（ピッチ調整）で定めたうえで，バトンパスを走者間で起こるイベント系列として記述した．
+制作と実践を経て，リレー経験者として必ずしも自覚していなかったことがらも明確化された．
+}
+
+
+% 現場への還元拡張（CFP）
+\fix{}{
+本研究の限界と展望を述べる．
+今後は，リレーの実践者（選手やコーチ）につかってもらうことで，現場の課題解決につなげたい．
+そのために有効な現行システム改良点について述べる．
+現行システムは，バトンパスを鳥瞰図的に眺める三人称視点でのアニメーションだが，バトンパス学習という意味では，一人称視点や二人称視点も重要であろう．一人称視点は，P視点ならばRを追いかける見え，R視点ならばPを待つ間は「雪崩」が迫ってきて，自身の出走後はPが視界に入らない見えである．
+一人称視点はとくに$\tau$が直接関連し，実際のリレー時の見えに近い一人称視点は捨ておけない．
+二人称視点は言わば「コーチの視点」である．
+傍らからバトンパスを眺めるからこそ把握できるインタラクションの特徴があるかもしれない．
+}
+
+\fix{}{
+現行システムで設計したユーザとのインタラクションは視覚的なものにとどまる．
+聴覚的（「はい!」という発声や足音など）・触覚的インタラクションも実装したシステムという発展可能性がある．
+たとえばタンジブルなバトン型インタフェースとし，振動で相手の位相をフィードバックするなどの工夫により，バトンパスの知性をより豊穣に体験できるシステムになるであろう．
+}
+
+\fix{}{
+% 新しい指標の応用（CFP）
+本研究では$\tau$と位相$\phi$というバトンパスに新しい変数（指標）を提案した．
+$\tau$と位相が実際のリレー競技において利用されているか，また，今後の新しいバトンパス戦略として現実的に$\tau$と位相が活用できるか，という検証は今後の課題である．
+}
+
+\fix{}{
+現場のデータ（練習や本番のリレー）をAIに学習させ，データ駆動型予測モデルの構築も可能である．
+そのようにして，現場のアスリートや指導者が，本ゲームを実データやAI生成データとともにプレイすることで，さらにバトンパスの学習が促進される可能性がある．
+}
+
+\fix{}{
+% フィジカルAI
+バトンパスは，物体を二者間で受け渡す触覚的インタラクションに基づく協調的行為の一例として位置づけられる．
+受け渡し行為の理解は，人とロボットのインタラクション（重い荷物の受け渡しや医療・介護の現場など）を扱うフィジカルAIの文脈においても重要である．
+}
+
+\fix{}{
+本研究は，バトンパスをシミュレーション可能なシステムとして構成することを通じて，スポーツにおけるスキルの学習・習得支援のみならず，人と機械が物理的環境の中で協調するための知性を理解する手がかりを提示した．
+今後，こうした知見が多様な実践領域へ展開されることを期待する．
+}
+
 
 \begin{acknowledgment}
 %% 謝辞原稿の内容（省略）%%
 \end{acknowledgment}
 
-\begin{thebibliography}{??}
-\bibitem[]{}
-\bibitem[]{}
-\end{thebibliography}
+  \bibliography{btxsample}%%.bib ファイル名
+  \bibliographystyle{jsai}%%jsai.bst スタイルの指定
 
-\appendix
-\section{付録}
+% \begin{thebibliography}{??}
+% \bibitem[]{}
+% \bibitem[]{}
+% \end{thebibliography}
+
+% \appendix
+% \section{付録}
 %% 付録原稿の内容（省略）%%
 
 \begin{biography}
-\profile{会員種別}{著者名}{略歴内容}
+\profile{正会員}{堀内隆仁}{2025年，慶應義塾大学大学院政策・メディア研究科後期博士課程単位取得退学，同年，博士（政策・メディア）取得．現在，東京都立大学客員研究員．身体知の学びの一人称研究，現象学的視点に立った身体知の学びの支援ツール，相互行為記述支援ツールの開発研究に従事．}
+\profile{非会員}{古川大晃}{2019年熊本大学教育学部生涯スポーツ福祉課程卒業．2021年九州大学大学院人間環境学府行動システム専攻修士課程修了．2025年東京大学大学院総合文化研究科広域科学専攻博士課程修了．2025年から現在まで日本学術振興会特別研究員および京都工芸繊維大学情報工学・人間科学系特任助教を務める．走運動における認知，個人間の相互作用，集団形成のダイナミクス，集団走の効果に関する研究に従事．日本体育・スポーツ・健康学会，ランニング学会会員．博士（学術）．}
+\profile{正会員}{児玉謙太郎}{2014年，総合研究大学院大学情報学専攻博士課程単位取得退学，神奈川大学特任助教．2015年，博士（情報学）取得． 2017年，同大学特任准教授．2020年，東京都立大学准教授．身体運動，知覚，コミュニケーションに関する研究に従事．}
+
 \end{biography}
 
 \end{document}
-\end{verbfbox}
-%\end{verbFbox}
-\caption{原稿の構成}
-\label{fig:原稿構成}
-\end{figure}
 
 \subsubsection{\texttt{Vol}と\texttt{No}}\label{Vol}
 \ltt{Vol} には \verb/\Vol{15}/ のように巻数（1985年が第1巻）を指定します．
@@ -346,10 +1118,10 @@ summary in English
 
 謝辞があれば，\ltt{acknowledgment} 環境に記述します．
 
-\subsubsection{付録}
+% \subsubsection{付録}
 
-付録がある場合は \verb/\appendix/ を用います．
-これ以降，\verb|\section|の番号は(A.1)，(A.2) $\cdots$ となります．
+% 付録がある場合は \verb/\appendix/ を用います．
+% これ以降，\verb|\section|の番号は(A.1)，(A.2) $\cdots$ となります．
 
 \subsubsection{著者の紹介}\label{profile}
 
@@ -516,7 +1288,7 @@ summary in English
 
 日本語の句読点はカンマ（\makebox[1zw][c]{\hbox{，}}）と
 ピリオド（\makebox[1zw][c]{\hbox{．}}）を使用し，
-``\makebox[1zw][c]{\hbox{、}}'' や ``\makebox[1zw][c]{\hbox{。}}''は
+``\makebox[1zw][c]{\hbox{，}}'' や ``\makebox[1zw][c]{\hbox{．}}''は
 使用しないでください．
 また，数式や英文中でのみで半角の句読点を用い，日本語文中では全角の句
 読点を使用してください．
@@ -580,10 +1352,10 @@ subsectionは``1\DOT{}1節''，subsubsectionは
 %subsectionは``1\DOT{}1節''(英語では ``Section~1\DOT{}1'')，subsubsectionは
 %``\S~1''(英語でも``\S~1'') のように\verb|\ref|だけで
 %『章』や『節』が補われます．
-%なお，subsubsectionの場合は``\S~1''としか表示されませんから、
+%なお，subsubsectionの場合は``\S~1''としか表示されませんから，
 %説明の箇所によってsubsectionが何を指しているかわからなくなることがあります．
 %そうした場合には，例えば，「\ref{bib}\ref{on-bib}」とか
-%「\ref{on-bib}（\ref{bib}）」のように補って説明してください。
+%「\ref{on-bib}（\ref{bib}）」のように補って説明してください．
 
 その他の参照は，番号のみを出力しますから，出力結果にあわせるように
 してください．

@@ -3,24 +3,29 @@
 export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	const gui = new lil.GUI()
 	const foldersToClose = []
+	const addStyledFolder = (parent, title, depth) => {
+		const folder = parent.addFolder(title)
+		applyFolderDepthStyle(folder, depth)
+		foldersToClose.push(folder)
+		return folder
+	}
 
 	// ===== カメラ切り替え =====
-	const cam = gui.addFolder('Camera')
-	foldersToClose.push(cam)
+	const cam = addStyledFolder(gui, 'Camera', 0)
 	cam.add(cameraApi, 'overview').name('Overview')
 	cam.add(cameraApi, 'zoomZone12').name('Zoom: 1-2 zone')
 	cam.add(cameraApi, 'zoomZone23').name('Zoom: 2-3 zone')
 	cam.add(cameraApi, 'zoomZone34').name('Zoom: 3-4 zone')
 	cam.add(cameraState, 'followBaton').name('Follow Baton')
-	cam.add(cameraState, 'followZoom', 1.0, 6.0, 0.1).name('Follow Zoom')
+	cam.add(cameraState, 'followZoom', 1.0, 20.0, 0.1).name('Follow Zoom')
 
-	const display = gui.addFolder('Display')
-	foldersToClose.push(display)
+	const display = addStyledFolder(gui, 'Display', 0)
 	display.add(hudState, 'showHUD').name('Show HUD')
+	display.add(sim.visual, 'trailLength', 0, 120, 1).name('Trail length')
+	display.add(sim.visual, 'trailFrameStride', 1, 10, 1).name('Trail frame step')
 
 	// ===== 再生設定（speedのみ）=====
-	const play = gui.addFolder('Playback')
-	foldersToClose.push(play)
+	const play = addStyledFolder(gui, 'Playback', 0)
 	play.add(sim.player, 'speed', 0.1, 1.0, 0.1).name('Speed (x0.1-1.0)')
 	play
 		.add(
@@ -34,8 +39,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 		.name('Restart Race (R)')
 
 	// ===== ゲーム設定 =====
-	const gameFolder = gui.addFolder('Game')
-	foldersToClose.push(gameFolder)
+	const gameFolder = addStyledFolder(gui, 'Game', 0)
 
 	const gameUI = {
 		enabled: sim.game?.enabled ?? true,
@@ -96,10 +100,8 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 		},
 	}
 
-	const summonFolder = gui.addFolder('Summon')
-	foldersToClose.push(summonFolder)
-	const teamFolder = summonFolder.addFolder('Teams (A-H)')
-	foldersToClose.push(teamFolder)
+	const summonFolder = addStyledFolder(gui, 'Summon', 0)
+	const teamFolder = addStyledFolder(summonFolder, 'Teams (A-H)', 1)
 	teamFolder
 		.add(gameUI, 'team', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
 		.name('Player Team')
@@ -116,8 +118,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	teamFolder.add(summon, 'G')
 	teamFolder.add(summon, 'H')
 
-	const segFolder = summonFolder.addFolder('Segments')
-	foldersToClose.push(segFolder)
+	const segFolder = addStyledFolder(summonFolder, 'Segments', 1)
 	segFolder.add(summon, 'seg12').name('1-2')
 	segFolder.add(summon, 'seg23').name('2-3')
 	segFolder.add(summon, 'seg34').name('3-4')
@@ -127,8 +128,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 
 	// ===== Runner Params（ランナーごとに独立）=====
 	// 直感的：Laneごと → runner（leg）ごと
-	const params = gui.addFolder('Runner Params')
-	foldersToClose.push(params)
+	const params = addStyledFolder(gui, 'Runner Params', 0)
 
 	// laneでグルーピング
 	const byLane = new Map()
@@ -138,15 +138,13 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	}
 
 	for (const [lane, runners] of Array.from(byLane.entries()).sort((a, b) => a[0] - b[0])) {
-		const lf = params.addFolder(`Lane ${lane}`)
-		foldersToClose.push(lf)
+		const lf = addStyledFolder(params, `Lane ${lane}`, 1)
 
 		// leg順
 		runners.sort((a, b) => a.leg - b.leg)
 
 		for (const r of runners) {
-			const rf = lf.addFolder(`Leg ${r.leg}  (${r.id})`)
-			foldersToClose.push(rf)
+			const rf = addStyledFolder(lf, `Leg ${r.leg}  (${r.id})`, 2)
 
 			// ここは「各ランナー独立」編集
 			rf.add(r, 'omegaScale', 0.5, 2.0, 0.01)
@@ -163,8 +161,7 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 		}
 	}
 
-	const interpersonalFolder = gui.addFolder('Interpersonal')
-	foldersToClose.push(interpersonalFolder)
+	const interpersonalFolder = addStyledFolder(gui, 'Interpersonal', 0)
 	interpersonalFolder
 		.add(sim.interpersonal, 'enabled')
 		.name('Enable Interpersonal')
@@ -172,10 +169,15 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 			sim.refreshAllRunnerKinematics()
 			rebuildGui()
 		})
+	interpersonalFolder
+		.add(sim.interpersonal, 'waitCueEnabled')
+		.name('Enable "Wait!" cue')
+		.onChange(() => {
+			sim.refreshAllRunnerKinematics()
+		})
 
 	if (sim.interpersonal.enabled) {
-		const passerFolder = interpersonalFolder.addFolder('Passer (P)')
-		foldersToClose.push(passerFolder)
+		const passerFolder = addStyledFolder(interpersonalFolder, 'Passer (P)', 1)
 		passerFolder
 			.add(sim.interpersonal.passer, 'syncMode', {
 				'Next runner / same team': 'sameTeamNext',
@@ -192,9 +194,16 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 			.add(sim.interpersonal.passer, 'K', 0.0, 10.0, 0.01)
 			.name('K')
 			.onChange(() => sim.refreshAllRunnerKinematics())
+		passerFolder
+			.add(sim.interpersonal.passer, 'strideRangeM', 5.0, 20.0, 0.1)
+			.name('Stride D (m)')
+			.onChange(() => sim.refreshAllRunnerKinematics())
+		passerFolder
+			.add(sim.interpersonal.passer, 'strideM1', 0.0001, 0.02, 0.0001)
+			.name('Stride M1')
+			.onChange(() => sim.refreshAllRunnerKinematics())
 
-		const receiverFolder = interpersonalFolder.addFolder('Receiver (R)')
-		foldersToClose.push(receiverFolder)
+		const receiverFolder = addStyledFolder(interpersonalFolder, 'Receiver (R)', 1)
 		receiverFolder
 			.add(sim.interpersonal.receiver, 'syncMode', {
 				'Prev runner / same team': 'sameTeamPrevious',
@@ -211,6 +220,10 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 			.add(sim.interpersonal.receiver, 'K', 0.0, 10.0, 0.01)
 			.name('K')
 			.onChange(() => sim.refreshAllRunnerKinematics())
+		receiverFolder
+			.add(sim.interpersonal.receiver, 'strideM2', 0.0001, 0.02, 0.0001)
+			.name('Stride M2')
+			.onChange(() => sim.refreshAllRunnerKinematics())
 	}
 
 	for (const folder of foldersToClose.reverse()) {
@@ -218,4 +231,25 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	}
 
 	return gui
+}
+
+function applyFolderDepthStyle(folder, depth) {
+	const root = folder.domElement
+	if (!root) return
+
+	root.dataset.folderDepth = String(depth)
+
+	const title = root.querySelector(':scope > .title') || root.querySelector('.title')
+	if (!title) return
+
+	title.dataset.folderDepth = String(depth)
+
+	let marker = title.querySelector('.folder-marker')
+	if (!marker) {
+		marker = document.createElement('span')
+		marker.className = 'folder-marker'
+		title.prepend(marker)
+	}
+
+	marker.textContent = depth === 0 ? '◆' : depth === 1 ? '▸' : '•'
 }

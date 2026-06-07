@@ -41,11 +41,14 @@ export class Runner {
 		this.tauToReceiver = null
 		this.prevTauToReceiver = null
 		this.tauToZoneEnd = null
+		this.prevTauToZoneEnd = null
 		this.tauToReceiverRate = null
+		this.tauToZoneEndRate = null
 		this.waitCueActive = false
 		this.waitCueUntilMs = 0
+		this.passerStrideInterpersonalFactor = 1.0
 		this.receiverBrakeActive = false
-		this.receiverBrakeStrideFactor = 1.0
+		this.receiverStrideInterpersonalFactor = 1.0
 
 		this._is_running = isRunning
 
@@ -92,6 +95,8 @@ export class Runner {
 		interpersonalStrideFactor = this.interpersonalStrideFactor,
 		syncPartnerCount = this.syncPartnerCount,
 	} = {}) {
+		// Kuramoto model:
+		// dphi/dt = omega_self(runDistance) + omega_interpersonal
 		this.individualOmegaComponent = individualOmegaComponentByRunDistance(this.runDistance)
 		this.interpersonalOmegaComponent = interpersonalOmegaComponent
 		this.syncPartnerCount = syncPartnerCount
@@ -117,7 +122,13 @@ export class Runner {
 
 	resetReceiverBrake() {
 		this.receiverBrakeActive = false
-		this.receiverBrakeStrideFactor = 1.0
+		this.receiverStrideInterpersonalFactor = 1.0
+		this.prevTauToZoneEnd = null
+		this.tauToZoneEndRate = null
+	}
+
+	resetPasserStrideInterpersonal() {
+		this.passerStrideInterpersonalFactor = 1.0
 	}
 
 	enterOfferPose() {

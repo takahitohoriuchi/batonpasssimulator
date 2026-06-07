@@ -109,22 +109,22 @@ function drawHUD() {
 	textFont('monospace')
 	textAlign(LEFT, TOP)
 
-	const pad = 12
-	const gap = 10
-	const cardW = Math.min(420, Math.max(320, width - pad * 2))
+	const pad = 16
+	const gap = 14
+	const cardW = Math.min(500, Math.max(380, width - pad * 2))
 	const headerLines = buildHUDHeaderLines()
-	const headerH = 18 + headerLines.length * 18
+	const headerH = 24 + headerLines.length * 22
 
 	drawHUDPanel(pad, pad, cardW, headerH)
-	let y = pad + 10
+	let y = pad + 14
 	for (const line of headerLines) {
-		drawHUDTextLine(line, pad + 12, y)
-		y += 18
+		drawHUDTextLine(line, pad + 16, y)
+		y += 22
 	}
 
 	const cards = buildHUDCards()
 	if (cards.length > 0) {
-		const cardH = 192
+		const cardH = 224
 		const startY = pad + headerH + gap
 		const cardsPerCol = Math.max(1, Math.floor((height - startY - pad) / (cardH + gap)))
 
@@ -200,31 +200,31 @@ function drawHUDCard(card, x, y, w, h) {
 
 	fill(...headerColor)
 	noStroke()
-	textSize(15)
-	text(`${card.team} / lane ${card.lane}${card.isPlayer ? ' / PLAYER' : ''}`, x + 12, y + 10)
+	textSize(17)
+	text(`${card.team} / lane ${card.lane}${card.isPlayer ? ' / PLAYER' : ''}`, x + 16, y + 14)
 
 	fill(...accentColor)
-	textSize(12)
-	text(`baton holder: ${card.P ? `leg${card.P.leg}` : '-'}`, x + 12, y + 30)
+	textSize(14)
+	text(`baton holder: ${card.P ? `leg${card.P.leg}` : '-'}`, x + 16, y + 38)
 
-	let yy = y + 50
-	drawRunnerHUDBlock('P', card.P, x + 12, yy, bodyColor)
-	yy += 62
-	drawRunnerHUDBlock('R', card.R, x + 12, yy, bodyColor)
-	yy += 48
+	let yy = y + 64
+	drawRunnerHUDBlock('P', card.P, x + 16, yy, bodyColor)
+	yy += 72
+	drawRunnerHUDBlock('R', card.R, x + 16, yy, bodyColor)
+	yy += 58
 
 	if (card.gameInfo) {
 		fill(180, 220, 255)
-		textSize(12)
+		textSize(13)
 		const offerLabel = card.gameInfo.canOfferNow ? 'yes' : 'no'
-		text(`game: p=${card.gameInfo.pStage}(${card.gameInfo.pStageLabel})  r=${card.gameInfo.rStage}(${card.gameInfo.rStageLabel})  offer=${offerLabel}`, x + 12, yy)
+		text(`game: p=${card.gameInfo.pStage}(${card.gameInfo.pStageLabel})  r=${card.gameInfo.rStage}(${card.gameInfo.rStageLabel})  offer=${offerLabel}`, x + 16, yy)
 	}
 }
 
 function drawRunnerHUDBlock(label, runner, x, y, colorValue) {
 	fill(...colorValue)
 	noStroke()
-	textSize(12)
+	textSize(13)
 
 	if (!runner) {
 		text(`${label}: none`, x, y)
@@ -239,19 +239,19 @@ function drawRunnerHUDBlock(label, runner, x, y, colorValue) {
 	text(
 		`   omega=${runner.omega.toFixed(2)} (ind ${runner.individualOmegaComponent.toFixed(2)} + inter ${runner.interpersonalOmegaComponent.toFixed(2)}, N=${runner.syncPartnerCount})`,
 		x,
-		y + 16,
+		y + 20,
 	)
 	text(
 		`   pitch=${runner.pitch.toFixed(2)}  stride=${runner.stride.toFixed(2)} (ind ${runner.individualStrideComponent.toFixed(2)} x inter ${runner.interpersonalStrideFactor.toFixed(2)} x coef ${runner.strideScale.toFixed(2)})`,
 		x,
-		y + 32,
+		y + 40,
 	)
 
 	if (label === 'P' && (runner.waitCueActive || runner.tauToReceiver !== null || runner.tauToZoneEnd !== null || runner.tauToReceiverRate !== null)) {
 		text(
 			`   tauPR=${formatHudNumber(runner.tauToReceiver)}  tauRB=${formatHudNumber(runner.tauToZoneEnd)}  dtau=${formatHudNumber(runner.tauToReceiverRate)}${runner.waitCueActive ? '  WAIT' : ''}`,
 			x,
-			y + 48,
+			y + 60,
 		)
 	}
 }
@@ -266,7 +266,7 @@ function drawHUDPanel(x, y, w, h) {
 function drawHUDTextLine(line, x, y) {
 	fill(...line.color)
 	noStroke()
-	textSize(12)
+	textSize(13)
 	text(line.text, x, y)
 }
 

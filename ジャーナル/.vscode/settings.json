@@ -1,0 +1,50 @@
+{
+	"todohighlight.keywords": [
+		{
+			"text": "NOTE:",
+			"color": "#000000",
+			"backgroundColor": "#ffff00",
+			"overviewRulerColor": "grey"
+		},
+		{
+			"text": "TODO:",
+			"color": "#ffffff",
+			"backgroundColor": "#ff0000",
+			"overviewRulerColor": "grey"
+		},
+		{
+			"text": "section{",
+			"color": "#000000",
+			"backgroundColor": "#9e9c84",
+			"overviewRulerColor": "grey",
+			"isWholeLine": true
+		},
+		{
+			"text": "subsection{",
+			"color": "#000000",
+			"backgroundColor": "#9e9c84",
+			"overviewRulerColor": "grey",
+			"isWholeLine": true
+		},
+		{
+			"text": "subsubsection{",
+			"color": "#000000",
+			"backgroundColor": "#9e9c84",
+			"overviewRulerColor": "grey",
+			"isWholeLine": true
+		}
+	],
+	"latex-workshop.latex.tools": [
+	{
+		"name": "latexmk",
+		"command": "latexmk",
+		"args": [
+		"-synctex=1",
+		"-interaction=nonstopmode",
+		"-file-line-error",
+		"-pdfdvi",
+		"%DOC%"
+		]
+	}
+	],
+}

@@ -1,23 +1,51 @@
 \begin{thebibliography}{}
 
-\bibitem[Goosens 94]{latex-companion}
-Goosens,~M., Mittelbach,~F., and Samarin,~A.: {\em The {\LaTeX} Companion},
-  Addison-Wesley (1994), (邦訳~: The {\LaTeX} コンパニオン,
-  アスキー書籍編集部 監訳, アスキー出版局, (1998))
+\bibitem[Ae 92]{ae1992}
+Ae,~M., Ito,~A., and Suzuki,~M.: The men's 100 metres, {\em IAAF}, pp. 47--52 (1992)
 
-\bibitem[Goosens 97]{latex-graphics-companion}
-Goosens,~M., Rahtz,~S., and Mittelbach,~F.: {\em The {\LaTeX} Graphics
-  Companion}, Addison-Wesley (1997)
+\bibitem[Frayling 94]{frayling1994}
+Frayling,~C.: Research in Art and Design, {\em Royal College of Art Research Papers}, Vol.~1, No.~1 (1994), Printed Publication, 1993/4
 
-\bibitem[松井 94]{松井}
-松井~正一：jbtxbst.doc, btxbst.doc を翻訳するとともに, 日本語用に修正,
-  追加を加えたもの (1994)
+\bibitem[Furukawa 24]{furukawa2024}
+Furukawa,~H., M.,~K., Richardson,~M.~J., and Varlet,~M.: Could spontaneous interpersonal synchronization enhance athletes’ performance? A case report on the Japanese 100-m record race, Research Square preprint (2024)
 
-\bibitem[Patashnik 88]{btxhak}
-Patashnik,~O.: Designing {BibTeX} Styles, The part of {BibTeX}'s documentation
-  that's not meant for general users (1988)
+\bibitem[Karlsson 24]{karlsson2024}
+Karlsson,~N. and Lunander,~A.: A stochastic analysis of the 4×100 m relay, {\em International Journal of Sports Science and Coaching}, Vol.~19, No.~6, pp. 2574--2588 (2024)
 
-\bibitem[中野 96]{中野}
-中野~賢：日本語\LaTeXe{}ブック, アスキー出版局 (1996)
+\bibitem[Kuramoto 75]{kuramoto1975}
+Kuramoto,~Y.: Self-entrainment of a population of coupled non-linear oscillators, in Araki,~H. ed., {\em International Symposium on Mathematical Problems in Theoretical Physics}, Vol.~39 of {\em Lecture Notes in Physics}, pp. 420--422, Springer (1975)
+
+\bibitem[Lee 82]{lee1982}
+Lee,~D.~N., Lishman,~J.~R., and Thomson,~J.~A.: Regulation of Gait in Long Jumping, {\em Journal of Experimental Psychology: Human Perception and Performance}, Vol.~8, No.~3, pp. 448--459 (1982)
+
+\bibitem[Lee 98]{Lee1998}
+Lee,~D.~N.: Guiding movement by coupling taus, {\em Ecological Psychology}, Vol.~10, No. 3-4, pp. 221--250 (1998)
+
+\bibitem[Li 25]{li2025}
+Li,~Z., Yue,~C., Li,~Z., Wang,~X., Xu,~H., Zhao,~Z., and Deng,~K.: Analysis of kinematic factors influencing performance in the Chinese men's 4×100 m relay team, {\em Scientific Reports}, Vol.~15, No.~1 (2025)
+
+\bibitem[Varlet 15]{varlet2015}
+Varlet,~M. and Richardson,~M.~J.: What would be Usain Bolt’s 100-meter sprint world record without Tyson Gay? Unintentional interpersonal synchronization between the two sprinters, {\em Journal of Experimental Psychology: Human Perception and Performance}, Vol.~41, No.~1, pp. 36--41 (2015)
+
+\bibitem[Ward-Smith 02]{wardsmith2002}
+Ward-Smith,~A.~J. and Radford,~P.~F.: A mathematical analysis of the 4x100 m relay, {\em Journal of Sports Sciences}, Vol.~20, No.~5, pp. 369--381 (2002)
+
+\bibitem[Zarebska 21]{zarebska2021}
+Zarebska,~E., Kusy,~K., Wlodarczyk,~M., Osik,~T., and Zielinski,~J.: Effective baton exchange in the 4×100 m relay race, {\em Acta Kinesiologica}, Vol.~15, No.~1, pp. 27--31 (2021)
+
+\bibitem[松林 22]{matsubayashi2022}
+松林~武生, 小林~海, 山中~亮, 大沼~勇人, 渡辺~圭佑, 山本~真帆, 笠井~信一, 図子~あまね, 土江~寛裕：陸上競技4×100mリレーにおけるバトンパス技術向上へのデータ活用―東京2020オリンピック大会前の練習における事例―, {\em Journal of High Performance Sport}, Vol.~10, pp. 107--124 (2022)
+
+\bibitem[諏訪 15]{suwa_hori:2015}
+諏訪正樹, 堀浩一, 伊藤毅志, 松原仁, 阿部明典, 大武美保子, 松尾豊, 藤井晴行, 中島秀之：一人称研究のすすめ　知能研究の新しい潮流, 近代科学社 (2015)
+
+\bibitem[中島 06]{nakashima2006}
+中島~秀之：構成的情報学とAI, 人工知能学会論文誌, Vol.~21, No.~6, pp. 502--513 (2006)
+
+\bibitem[堀内 20]{horiuchi2020}
+堀内~隆仁, 諏訪~正樹：「アスリートとして生きる」ということ:競技・生活が一体となり身体スキルを学ぶ様を描く物語, 認知科学, Vol.~27, No.~4, pp. 443--460 (2020)
+
+\bibitem[野口]{noguchi_online}
+野口~純正：日本陸上競技連盟公式サイト, 世界選手権、記録 データからみた展望\&楽しみ方／男子4×100mR, 2026年2月13日閲覧
 
 \end{thebibliography}

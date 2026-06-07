@@ -5,45 +5,50 @@ The style file: jsai.bst
 Database file #1: btxsample.bib
 Reallocated singl_function (elt_size=4) to 100 items from 50.
 Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
-You've used 5 entries,
+Warning--諏訪正樹 には，姓と名の間に空白がないよ？ in suwa_hori:2015
+Warning--諏訪正樹 には，姓と名の間に空白がないよ？ in suwa_hori:2015
+Warning--can't use both author and editor fields in suwa_hori:2015
+Warning--there's no year in noguchi_online
+You've used 16 entries,
             3266 wiz_defined-function locations,
-            714 strings with 5506 characters,
-and the built_in function-call counts, 1923 in all, are:
-= -- 156
-> -- 55
-< -- 0
-+ -- 20
-- -- 18
-* -- 96
-:= -- 272
+            792 strings with 7521 characters,
+and the built_in function-call counts, 9437 in all, are:
+= -- 853
+> -- 301
+< -- 33
++ -- 110
+- -- 107
+* -- 626
+:= -- 1168
 add.period$ -- 0
-call.type$ -- 5
-change.case$ -- 24
-chr.to.int$ -- 5
-cite$ -- 5
-duplicate$ -- 114
-empty$ -- 184
-format.name$ -- 37
-if$ -- 438
+call.type$ -- 16
+change.case$ -- 101
+chr.to.int$ -- 16
+cite$ -- 20
+duplicate$ -- 492
+empty$ -- 786
+format.name$ -- 197
+if$ -- 2211
 int.to.chr$ -- 1
 int.to.str$ -- 0
-missing$ -- 6
-newline$ -- 18
-num.names$ -- 10
-pop$ -- 60
+missing$ -- 15
+newline$ -- 51
+num.names$ -- 34
+pop$ -- 186
 preamble$ -- 1
-purify$ -- 34
+purify$ -- 133
 quote$ -- 0
-skip$ -- 139
+skip$ -- 614
 stack$ -- 0
-substring$ -- 37
-swap$ -- 7
-text.length$ -- 0
-text.prefix$ -- 0
+substring$ -- 451
+swap$ -- 146
+text.length$ -- 33
+text.prefix$ -- 2
 top$ -- 0
-type$ -- 42
-warning$ -- 0
-while$ -- 10
-width$ -- 7
-write$ -- 53
-is.kanji.str$ -- 69
+type$ -- 186
+warning$ -- 4
+while$ -- 66
+width$ -- 20
+write$ -- 176
+is.kanji.str$ -- 281
+(There were 4 warnings)
