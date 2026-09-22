@@ -66,9 +66,8 @@ export class GameController {
 		if (this.rStage !== 2) return false
 
 		const phi = normalize0to2pi(P.phase)
-		
 
-		if (!(Math.PI <= phi && phi < 1.5*Math.PI)) return false  
+		if (!(Math.PI <= phi && phi < 1.5 * Math.PI)) return false
 
 		const dif = Math.abs(this.sim.shortestArcDistance(P, R))
 		return dif <= R.l - Math.sin(phi) * P.l
@@ -76,7 +75,9 @@ export class GameController {
 
 	canGrasp(P, R) {
 		if (this.pStage !== 2) return false
-		else{return true}	
+		else {
+			return true
+		}
 	}
 
 	call(P, R) {

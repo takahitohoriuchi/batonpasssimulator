@@ -1,5 +1,5 @@
-import { Runner, Baton } from './entities.js'
 import { InteractionController } from './controller.js'
+import { Baton, Runner } from './entities.js'
 import { GameController } from './gameController.js'
 
 export class Simulation {
@@ -268,9 +268,7 @@ export class Simulation {
 
 		this.player.paused = true
 		const files = this.recording.completedFiles.concat(
-			this.recording.segments
-				.filter((segment) => segment.rows.length > 0 && !segment.finished)
-				.map((segment) => this.buildRecordingFile(segment)),
+			this.recording.segments.filter((segment) => segment.rows.length > 0 && !segment.finished).map((segment) => this.buildRecordingFile(segment)),
 		)
 
 		await saveRecordingFiles(files, this.recording)
@@ -337,10 +335,7 @@ export class Simulation {
 		for (const r of this.runners) {
 			const { config, partners } = this.getSynchronizationContext(r)
 			const partnerCount = partners.length
-			const coupling =
-				partnerCount > 0
-					? (config.K / partnerCount) * partners.reduce((sum, p) => sum + Math.sin(p.phase - r.phase), 0.0)
-					: 0.0
+			const coupling = partnerCount > 0 ? (config.K / partnerCount) * partners.reduce((sum, p) => sum + Math.sin(p.phase - r.phase), 0.0) : 0.0
 
 			r.refreshKinematics({
 				interpersonalOmegaComponent: coupling,
@@ -557,7 +552,10 @@ export class Simulation {
 			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
 		}
 
-		return candidates.filter((other) => other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.passer.rangeM))
+		return candidates.filter(
+			(other) =>
+				other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.passer.rangeM),
+		)
 	}
 
 	getReceiverSynchronizationPartners(runner) {
@@ -572,13 +570,14 @@ export class Simulation {
 			candidates = this.runners.filter((other) => other.id !== runner.id && other._is_running)
 		}
 
-		return candidates.filter((other) => other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.receiver.rangeM))
+		return candidates.filter(
+			(other) =>
+				other.id !== runner.id && this.isSynchronizationEligible(other) && this.isWithinSyncRange(runner, other, this.interpersonal.receiver.rangeM),
+		)
 	}
 
 	getCurrentPassers() {
-		return this.batons
-			.map((baton) => this.runners.find((r) => r.id === baton.holderId) || null)
-			.filter(Boolean)
+		return this.batons.map((baton) => this.runners.find((r) => r.id === baton.holderId) || null).filter(Boolean)
 	}
 
 	getCurrentReceivers() {
@@ -588,7 +587,7 @@ export class Simulation {
 	}
 
 	forwardRaceDistanceMeters(fromDist, toDist) {
-		return ((toDist - fromDist) % 400 + 400) % 400
+		return (((toDist - fromDist) % 400) + 400) % 400
 	}
 
 	safeTime(distance, speed) {
@@ -603,7 +602,7 @@ export class Simulation {
 
 	shortestRaceDistanceMeters(aDist, bDist) {
 		let d = bDist - aDist
-		d = (((d + 200) % 400) + 400) % 400 - 200
+		d = ((((d + 200) % 400) + 400) % 400) - 200
 		return d
 	}
 
@@ -696,10 +695,7 @@ export class Simulation {
 
 	computeRecordingFrameFlags(segment, passer, receiver, holderId) {
 		const frameEvents = this.consumeFrameEventsForSegment(segment)
-		const gamePair =
-			this.game?.enabled && this.game.playerLane === this.recording.targetLane
-				? this.game.getPR()
-				: { P: null, R: null }
+		const gamePair = this.game?.enabled && this.game.playerLane === this.recording.targetLane ? this.game.getPR() : { P: null, R: null }
 		const isCurrentGamePair = gamePair.P?.id === passer.id && gamePair.R?.id === receiver.id
 
 		const e2 = frameEvents.has('e2') || receiver._is_running
@@ -826,13 +822,10 @@ export class Simulation {
 				csv: serializeSimulationStudyRows(rows),
 			}
 
-			await saveRecordingFiles(
-				[file],
-				{
-					saveMode: outputDirectoryHandle ? 'directory' : 'download',
-					outputDirectoryHandle,
-				},
-			)
+			await saveRecordingFiles([file], {
+				saveMode: outputDirectoryHandle ? 'directory' : 'download',
+				outputDirectoryHandle,
+			})
 			return true
 		} finally {
 			this.simulationStudy.running = false
@@ -844,11 +837,13 @@ export class Simulation {
 		const rows = []
 
 		for (let callTime = receiverStartTime; callTime <= callTimeMax + 1e-9; callTime += step) {
-			rows.push(this.simulateScheduledCallTrial({
-				receiverStartTime,
-				callTime: roundSimulationTime(callTime),
-				dtBase: step,
-			}))
+			rows.push(
+				this.simulateScheduledCallTrial({
+					receiverStartTime,
+					callTime: roundSimulationTime(callTime),
+					dtBase: step,
+				}),
+			)
 		}
 
 		if (rows.length === 0) {
@@ -1024,7 +1019,7 @@ export class Simulation {
 	shortestArcDistance(aRunner, bRunner) {
 		const P = this.track.lapLengthLaneCenter(aRunner.lane)
 		let d = bRunner.s - aRunner.s
-		d = (((d + P / 2) % P) + P) % P - P / 2
+		d = ((((d + P / 2) % P) + P) % P) - P / 2
 		return d
 	}
 
@@ -1304,7 +1299,29 @@ function buildSimulationBaseFileStem(date, lane) {
 }
 
 function serializeRecordingRows(rows) {
-	const header = ['t', 'xP', 'xR', 'vP', 'vR', 'phiP', 'phiR', 'F^intra', 'F^inter', 'L^intra', 'L^inter', 'tauドットPR', 'tauPR', 'tauRB', 'e2', 'e4a', 'e4b', 'e5', 'e6', 'e7', 'e8']
+	const header = [
+		't',
+		'xP',
+		'xR',
+		'vP',
+		'vR',
+		'phiP',
+		'phiR',
+		'F^intra',
+		'F^inter',
+		'L^intra',
+		'L^inter',
+		'tauドットPR',
+		'tauPR',
+		'tauRB',
+		'e2',
+		'e4a',
+		'e4b',
+		'e5',
+		'e6',
+		'e7',
+		'e8',
+	]
 	const lines = [header.join(',')]
 	for (const row of rows) {
 		lines.push(

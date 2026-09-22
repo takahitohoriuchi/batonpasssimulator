@@ -1,6 +1,6 @@
-import { TrackView } from './track.js'
-import { Simulation } from './sim.js'
 import { buildGUI } from './gui.js'
+import { Simulation } from './sim.js'
+import { TrackView } from './track.js'
 
 let view
 let sim
@@ -8,8 +8,8 @@ let gui
 let rebuildGuiRef
 let lastRecordingActive = false
 
-let cameraState;
-let hudState;
+let cameraState
+let hudState
 const TEAM_LABELS = 'ABCDEFGH'
 
 function isPointerOverGUI() {
@@ -102,7 +102,6 @@ function setup() {
 			sim.game.onKeyDown(e)
 		}
 	}
-
 }
 
 function drawHUD() {
@@ -222,7 +221,11 @@ function drawHUDCard(card, x, y, w, h) {
 		fill(180, 220, 255)
 		textSize(13)
 		const offerLabel = card.gameInfo.canOfferNow ? 'yes' : 'no'
-		text(`game: p=${card.gameInfo.pStage}(${card.gameInfo.pStageLabel})  r=${card.gameInfo.rStage}(${card.gameInfo.rStageLabel})  offer=${offerLabel}`, x + 16, yy)
+		text(
+			`game: p=${card.gameInfo.pStage}(${card.gameInfo.pStageLabel})  r=${card.gameInfo.rStage}(${card.gameInfo.rStageLabel})  offer=${offerLabel}`,
+			x + 16,
+			yy,
+		)
 	}
 }
 
@@ -236,11 +239,7 @@ function drawRunnerHUDBlock(label, runner, x, y, colorValue) {
 		return
 	}
 
-	text(
-		`${label}: leg${runner.leg}  race=${runner.dist.toFixed(1)}m  run=${runner.runDistance.toFixed(1)}m  phase=${runner.phase.toFixed(2)}`,
-		x,
-		y,
-	)
+	text(`${label}: leg${runner.leg}  race=${runner.dist.toFixed(1)}m  run=${runner.runDistance.toFixed(1)}m  phase=${runner.phase.toFixed(2)}`, x, y)
 	text(
 		`   omega=${runner.omega.toFixed(2)} (ind ${runner.individualOmegaComponent.toFixed(2)} + inter ${runner.interpersonalOmegaComponent.toFixed(2)}, N=${runner.syncPartnerCount})`,
 		x,

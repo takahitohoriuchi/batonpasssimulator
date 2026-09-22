@@ -27,27 +27,23 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	// ===== 再生設定（speedのみ）=====
 	const play = addStyledFolder(gui, 'Playback', 0)
 	play.add(sim.player, 'speed', 0.1, 1.0, 0.1).name('Speed (x0.1-1.0)')
-	play
-		.add(
-			{
-				toggleRecording: async () => {
-					await sim.toggleRecording()
-					rebuildGui()
-				},
+	play.add(
+		{
+			toggleRecording: async () => {
+				await sim.toggleRecording()
+				rebuildGui()
 			},
-			'toggleRecording',
-		)
-		.name(sim.getRecordingButtonLabel())
-	play
-		.add(
-			{
-				restartRace: () => {
-					sim.resetRace()
-				},
+		},
+		'toggleRecording',
+	).name(sim.getRecordingButtonLabel())
+	play.add(
+		{
+			restartRace: () => {
+				sim.resetRace()
 			},
-			'restartRace',
-		)
-		.name('Restart Race (R)')
+		},
+		'restartRace',
+	).name('Restart Race (R)')
 
 	// ===== ゲーム設定 =====
 	const gameFolder = addStyledFolder(gui, 'Game', 0)
