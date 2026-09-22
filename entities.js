@@ -109,10 +109,11 @@ export class Runner {
 	}
 
 	enterReceiveReady() {
-		if (this._is_receive_ready) return
+		if (this._is_receive_ready) return false
 		this._is_receive_ready = true
 		this._is_raised_arm = true
 		this.phase = (3 * Math.PI) / 2 // ★ 1.5π
+		return true
 	}
 
 	exitReceiveReady() {
@@ -132,10 +133,11 @@ export class Runner {
 	}
 
 	enterOfferPose() {
-		if (this._is_offer_pose) return
+		if (this._is_offer_pose) return false
 		this._is_offer_pose = true
 		this._is_passing = true
 		// phaseはその瞬間で固定
+		return true
 	}
 
 	exitOfferPose() {
@@ -193,60 +195,69 @@ function normalizeCurveDistance(runDistance) {
 	return Math.max(10.0, runDistance)
 }
 
+const REPRESENTATIVE_SPLINE_BREAKS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+// Coefficients exported from scipy.interpolate.CubicSpline using the same
+// 10 m mean data as fit_representative_stride_curves_spline.py.
+const PITCH_SPLINE_COEFFICIENTS = [
+	[0.000226533336196, -0.0119710000858811, 0.1836816672392071, 3.90125],
+	[0.000226533336196, -0.005175, 0.0122216663803964, 4.767499999999999],
+	[-0.0000076666809802, 0.0016210000858811, -0.0233183327607924, 4.598750000000001],
+	[-0.0000558666122753, 0.0013909996564755, 0.0068016646627734, 4.52],
+	[-0.0000251168699187, -0.0002849987117829, 0.0178616741096989, 4.671250000000001],
+	[0.0000075840919501, -0.0010385048093438, 0.0046266388984313, 4.79625],
+	[0.0000447805021184, -0.0008109820508417, -0.0138682297034238, 4.746250000000001],
+	[-0.0000079561004237, 0.0005324330127104, -0.0166537200847361, 4.571249999999999],
+	[-0.0000079561004237, 0.00029375, -0.0083918899576318, 4.45],
+]
+
+const STRIDE_SPLINE_COEFFICIENTS = [
+	[-0.0000596944778427, 0.00129708433528, 0.0478736044314668, 1.3675],
+	[-0.0000596944778427, -0.00049375, 0.0559069477842666, 1.91625],
+	[0.0000684723892133, -0.00228458433528, 0.0281236044314668, 2.36625],
+	[-0.0000154450790106, -0.0002304126588801, 0.002973634489866, 2.4875],
+	[0.0000495579268293, -0.0006937650291996, -0.006268142390931, 2.47875],
+	[0.0000059633716936, 0.0007929727756785, -0.0052760649261422, 2.39625],
+	[-0.0000871614136036, 0.0009718739264857, 0.0123724020954998, 2.42875],
+	[0.0000664322827207, -0.0016429684816214, 0.0056614565441429, 2.5625],
+	[0.0000664322827207, 0.00035, -0.0072682282720714, 2.52125],
+]
+
+function evaluateRepresentativeSpline(distance, coefficients) {
+	const d = normalizeCurveDistance(distance)
+	for (let i = 0; i < coefficients.length; i += 1) {
+		const start = REPRESENTATIVE_SPLINE_BREAKS[i]
+		const end = REPRESENTATIVE_SPLINE_BREAKS[i + 1]
+		if (d <= end) {
+			const [a, b, c, intercept] = coefficients[i]
+			const u = d - start
+			return ((a * u + b) * u + c) * u + intercept
+		}
+	}
+	return null
+}
+
 function individualOmegaComponentByRunDistance(runDistance) {
 	return pitchHzToOmega(individualPitchHzComponentByRunDistance(runDistance))
 }
 
 function individualPitchHzComponentByRunDistance(runDistance) {
-	const d = normalizeCurveDistance(runDistance)
-
-	if (d < 20) {
-		return -0.0002794207 * (d - 10) ** 3 + 0.1006226551 * (d - 10) + 3.90125
-	} else if (20 <= d && d < 30) {
-		return 0.0003621035 * (d - 20) ** 3 - 0.0083826212 * (d - 20) ** 2 + 0.0167964429 * (d - 20) + 4.6333333333
-	} else if (30 <= d && d < 40) {
-		return -0.0000439934 * (d - 30) ** 3 + 0.0024804846 * (d - 30) ** 2 - 0.0422259235 * (d - 30) + 4.37875
-	} else if (40 <= d && d < 50) {
-		return -0.0000461299 * (d - 40) ** 3 + 0.0011606826 * (d - 40) ** 2 - 0.0454242379 * (d - 40) + 4.52
-	} else if (50 <= d && d < 60) {
-		return -0.0000277369 * (d - 50) ** 3 - 0.0002232149 * (d - 50) ** 2 - 0.0360495614 * (d - 50) + 4.67125
-	} else if (60 <= d && d < 70) {
-		return 0.0000083276 * (d - 60) ** 3 - 0.0010553228 * (d - 60) ** 2 - 0.0488349386 * (d - 60) + 4.79625
-	} else if (70 <= d && d < 80) {
-		return 0.0000444264 * (d - 70) ** 3 - 0.0008054939 * (d - 70) ** 2 - 0.0674431052 * (d - 70) + 4.70875
-	} else if (80 <= d && d < 90) {
-		return -0.0000072833 * (d - 80) ** 3 + 0.0005272984 * (d - 80) ** 2 - 0.0702250603 * (d - 80) + 4.445
-	} else if (90 <= d && d <= 100) {
-		return -0.0000102933 * (d - 90) ** 3 + 0.0003088004 * (d - 90) ** 2 - 0.0613640702 * (d - 90) + 4.45
+	const splineValue = evaluateRepresentativeSpline(runDistance, PITCH_SPLINE_COEFFICIENTS)
+	if (splineValue !== null) {
+		return splineValue
 	}
 
-	return 4.2 + 0.25 * Math.exp(-0.2331042088 * (d - 100))
+	const d = normalizeCurveDistance(runDistance)
+	return 4.2 + 0.25 * Math.exp(-0.233 * (d - 100))
 }
 
 function individualStrideBaseComponentByRunDistance(runDistance) {
-	const d = normalizeCurveDistance(runDistance)
-
-	if (d < 20) {
-		return -0.0000048752 * (d - 10) ** 3 + 0.0627370948 * (d - 10) + 1.3675
-	} else if (20 <= d && d < 30) {
-		return -0.0000743742 * (d - 20) ** 3 - 0.0001462551 * (d - 20) ** 2 + 0.0612745438 * (d - 20) + 1.91625
-	} else if (30 <= d && d < 40) {
-		return 0.0000723718 * (d - 30) ** 3 - 0.0023774797 * (d - 30) ** 2 + 0.0360361899 * (d - 30) + 2.36625
-	} else if (40 <= d && d < 50) {
-		return -0.000016363 * (d - 40) ** 3 - 0.0002063263 * (d - 40) ** 2 + 0.0101981341 * (d - 40) + 2.4875
-	} else if (50 <= d && d < 60) {
-		return 0.0000493301 * (d - 50) ** 3 - 0.0006972151 * (d - 50) ** 2 - 0.0108372801 * (d - 50) + 2.47875
-	} else if (60 <= d && d < 70) {
-		return 0.0000100426 * (d - 60) ** 3 + 0.0007826883 * (d - 60) ** 2 - 0.0099825484 * (d - 60) + 2.39625
-	} else if (70 <= d && d < 80) {
-		return -0.0000363758 * (d - 70) ** 3 + 0.0010839666 * (d - 70) ** 2 + 0.008679001 * (d - 70) + 2.43125
-	} else if (80 <= d && d < 90) {
-		return 0.0000327106 * (d - 80) ** 3 - 0.0000073074 * (d - 80) ** 2 + 0.0194455931 * (d - 80) + 2.58625
-	} else if (90 <= d && d <= 100) {
-		return -0.000032467 * (d - 90) ** 3 + 0.0009739121 * (d - 90) ** 2 + 0.0291116397 * (d - 90) + 2.53375
+	const splineValue = evaluateRepresentativeSpline(runDistance, STRIDE_SPLINE_COEFFICIENTS)
+	if (splineValue !== null) {
+		return splineValue
 	}
 
-	return 2.53375
+	return 2.53
 }
 
 function interpersonalOmegaComponentByRunDistance(_runDistance) {

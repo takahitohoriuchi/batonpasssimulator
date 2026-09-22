@@ -85,11 +85,22 @@ export class GameController {
 		this.pStage = 1
 		this.haiUntilMs = performance.now() + 500
 		this._prevRPhase = R.phase
+		this.sim.logFrameEvent('e4a', P.lane, P.leg)
+	}
+
+	startReceiver(P, R) {
+		if (this.rStage !== 0) return false
+		R.go()
+		this.rStage = 1
+		this.sim.logFrameEvent('e2', P.lane, P.leg)
+		return true
 	}
 
 	offer(P, R) {
 		if (this.pStage !== 1 || this.rStage !== 2) return
-		P.enterOfferPose()
+		if (P.enterOfferPose()) {
+			this.sim.logFrameEvent('e6', P.lane, P.leg)
+		}
 		this.pStage = 2
 		P._is_passing = true
 		R._is_passing = true
@@ -98,6 +109,7 @@ export class GameController {
 	grasp(P, R) {
 		if (!this.canGrasp(P, R)) return
 		this.rStage = 3
+		this.sim.logFrameEvent('e7', P.lane, P.leg)
 	}
 
 	release(P, R) {
@@ -107,6 +119,7 @@ export class GameController {
 		if (!baton) return
 
 		this.pStage = 3
+		this.sim.logFrameEvent('e8', P.lane, P.leg)
 
 		baton.attachTo(R)
 
@@ -153,8 +166,7 @@ export class GameController {
 			e.preventDefault()
 
 			if (this.rStage === 0) {
-				R.go()
-				this.rStage = 1
+				this.startReceiver(P, R)
 				return
 			}
 
@@ -200,7 +212,9 @@ export class GameController {
 			if (this._prevRPhase == null) this._prevRPhase = R.phase
 
 			if (crossedAngle0to2pi(this._prevRPhase, R.phase, target)) {
-				R.enterReceiveReady()
+				if (R.enterReceiveReady()) {
+					this.sim.logFrameEvent('e5', P.lane, P.leg)
+				}
 				this.rStage = 2
 			}
 

@@ -126,6 +126,128 @@ P が「差し出してよい」と判定される条件は、現在のコード
 
 つまり、R 側の準備ができていて、P の腕の位相も差し出しに適したタイミングで、しかも物理的に届く距離にいるときに `canOfferNow=true` になります。
 
+## GUIパラメータ辞典
+
+この節は、現在の GUI に出てくる設定項目について、
+
+- GUI 上の表示名
+- コード上の変数名
+- 何を意味するか
+- デフォルト値
+- 範囲や選択肢
+
+を対応づけて整理したものです。  
+デフォルト値は、現在の実装で [main.js](/Users/takahitohoriuchi/Desktop/研究/リレー研究/main.js)、[sim.js](/Users/takahitohoriuchi/Desktop/研究/リレー研究/sim.js)、[gui.js](/Users/takahitohoriuchi/Desktop/研究/リレー研究/gui.js) に書かれている値です。
+
+### Camera
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Overview` | `cameraApi.overview()` | カメラを全景位置へ戻すボタン | なし | ボタン |
+| `Zoom: 1-2 zone` | `cameraApi.zoomZone12()` | 1-2走バトンゾーンへズームするボタン | なし | ボタン |
+| `Zoom: 2-3 zone` | `cameraApi.zoomZone23()` | 2-3走バトンゾーンへズームするボタン | なし | ボタン |
+| `Zoom: 3-4 zone` | `cameraApi.zoomZone34()` | 3-4走バトンゾーンへズームするボタン | なし | ボタン |
+| `Follow Baton` | `cameraState.followBaton` | プレイヤーチームのバトン保持者を自動追従するか | `true` | `true / false` |
+| `Follow Zoom` | `cameraState.followZoom` | `Follow Baton` 時のズーム倍率 | `2.6` | `1.0` 〜 `20.0` |
+
+### Display
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Show HUD` | `hudState.showHUD` | 左上 HUD を表示するか | `true` | `true / false` |
+| `Trail length` | `sim.visual.trailLength` | 軌跡の残像数。`0` なら軌跡なし | `0` | `0` 〜 `120` |
+| `Trail frame step` | `sim.visual.trailFrameStride` | 何フレームおきに残像を採るか。大きいほど疎になる | `1` | `1` 〜 `10` |
+
+### Playback
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Speed (x0.1-1.0)` | `sim.player.speed` | シミュレーションの再生速度 | `1.0` | `0.1` 〜 `1.0` |
+| `● Start Recording` / `■ Stop Recording` | `sim.toggleRecording()` / `sim.recording.active` | CSV 記録の開始・停止 | OFF | トグルボタン |
+| `Restart Race (R)` | `sim.resetRace()` | GUI 設定を保持したままレースをやり直す | なし | ボタン |
+
+### Game
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Enable Game` | `gameUI.enabled` → `sim.game.enabled` | ゲームモードを使うか | `true` | `true / false` |
+
+### Summon
+
+#### Teams (A-H)
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Player Team` | `gameUI.team` → `sim.game.playerLane` | プレイヤーが操作するチーム | `D` | `A` 〜 `H` |
+| `A`〜`H` | `summon.A` 〜 `summon.H` | 召喚するチームの選択 | 全て `false` | 各チェックボックス |
+
+#### Segments
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `1-2` | `summon.seg12` | 1-2走区間を召喚対象に含める | `true` | `true / false` |
+| `2-3` | `summon.seg23` | 2-3走区間を召喚対象に含める | `false` | `true / false` |
+| `3-4` | `summon.seg34` | 3-4走区間を召喚対象に含める | `false` | `true / false` |
+| `All legs` | `summon.all` | 全区間を一括で召喚対象にする | `false` | `true / false` |
+| `Summon!` | `summon.summonRunners()` | 選択中のチーム・区間でランナーを生成し直す | なし | ボタン |
+
+### Runner Params
+
+`Runner Params` は、現在召喚されているランナーごとに生成されます。  
+つまり、`Lane 4 > Leg 2 (L4-leg2)` のようなフォルダは、召喚内容に応じて増減します。
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `pitch coef` | `r.omegaScale` | 角速度 `omega` に掛かる係数。GUI 上ではピッチ係数として扱う | `1.0` | `0.5` 〜 `2.0` |
+| `stride coef` | `r.strideScale` | ストライドに掛かる係数 | `1.0` | `0.5` 〜 `2.0` |
+| `start marker offset (m)` | `r.startTriggerOffset` | 非ゲームモード時の出走マーカーの手前距離 | `0.0` | `0.0` 〜 `10.0` |
+| `arm length l (m)` | `r.l` | 腕長パラメータ。`canOffer` や受け渡し距離に関与 | `0.8` | `0.1` 〜 `1.5` |
+| `extra reach (m)` | `r.armReachExtra` | 腕長以外の追加リーチ量 | `0.2` | `0.0` 〜 `0.8` |
+
+補足:
+
+- `start marker offset (m)` は、`Enable Game = OFF` かつ `Leg 2` 以降のランナーにだけ表示されます。
+- `pitch coef` と `stride coef` は、絶対値そのものではなく「内部モデルに掛ける係数」です。
+
+### Interpersonal
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Enable Interpersonal` | `sim.interpersonal.enabled` | 個人間相互作用全体を有効にするか | `true` | `true / false` |
+| `Enable "Wait!" cue` | `sim.interpersonal.waitCueEnabled` | 「待って!」の声かけと、それに伴う R の減速を有効にするか | `false` | `true / false` |
+
+#### Passer (P)
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Partners` | `sim.interpersonal.passer.syncMode` | P がピッチ同期する相手の選び方 | `sameTeamNext` | `Next runner / same team`, `Next runners / all teams`, `All running runners` |
+| `Range (m)` | `sim.interpersonal.passer.rangeM` | ピッチ同期の相手として数える空間範囲 | `20.0` | `0.0` 〜 `400.0` |
+| `K` | `sim.interpersonal.passer.K` | P の蔵本モデル結合強度 | `2.0` | `0.0` 〜 `10.0` |
+| `Stride D (m)` | `sim.interpersonal.passer.strideRangeM` | P の歩幅調整を始める距離条件 `D` | `10.0` | `5.0` 〜 `20.0` |
+| `Stride M1` | `sim.interpersonal.passer.strideM1` | P の歩幅個人間成分更新のスケーリング係数 | `0.005` | `0.0001` 〜 `0.02` |
+
+#### Receiver (R)
+
+| GUI表示名 | コード上の名前 | 意味 | デフォルト | 範囲・選択肢 |
+|---|---|---|---|---|
+| `Partners` | `sim.interpersonal.receiver.syncMode` | R がピッチ同期する相手の選び方 | `sameTeamPrevious` | `Prev runner / same team`, `Prev runners / all teams`, `All running runners` |
+| `Range (m)` | `sim.interpersonal.receiver.rangeM` | ピッチ同期の相手として数える空間範囲 | `400.0` | `0.0` 〜 `400.0` |
+| `K` | `sim.interpersonal.receiver.K` | R の蔵本モデル結合強度 | `0.0` | `0.0` 〜 `10.0` |
+| `Stride M2` | `sim.interpersonal.receiver.strideM2` | R の歩幅個人間成分更新のスケーリング係数 | `0.002` | `0.0001` 〜 `0.02` |
+
+### 変数名が似ていて紛らわしいもの
+
+| コード上の名前 | 何を表すか |
+|---|---|
+| `rangeM` | ピッチ同期で「誰を同期相手に数えるか」の空間範囲 |
+| `strideRangeM` | P の歩幅調整で「どれだけ近づいたら調整を始めるか」の距離条件 `D` |
+| `omegaScale` | 角速度 `omega` に掛ける係数。GUI 上では `pitch coef` |
+| `strideScale` | ストライドに掛ける GUI 係数 |
+| `individualOmegaComponent` | 距離依存のピッチ個人内成分を角速度に変換した値 |
+| `interpersonalOmegaComponent` | 蔵本モデルの結合項として加わる角速度成分 |
+| `individualStrideComponent` | 距離依存の歩幅個人内成分 |
+| `interpersonalStrideFactor` | 歩幅個人間成分の最終係数。内部では P 用と R 用の係数を掛け合わせている |
+
 ## ファイル構造
 
 ```text

@@ -17,16 +17,16 @@ export class Simulation {
 			waitCueEnabled: false,
 			passer: {
 				syncMode: 'sameTeamNext',
-				rangeM: 400.0,
-				K: 0.0,
+				rangeM: 20.0,
+				K: 2.0,
 				strideRangeM: 10.0,
-				strideM1: 0.001,
+				strideM1: 0.002,
 			},
 			receiver: {
 				syncMode: 'sameTeamPrevious',
 				rangeM: 400.0,
 				K: 0.0,
-				strideM2: 0.002,
+				strideM2: 0.005,
 			},
 		}
 
@@ -41,6 +41,9 @@ export class Simulation {
 
 		this.runners = []
 		this.batons = []
+		this.simulationStudy = this.createSimulationStudyState()
+		this._updatingSimulationWindow = false
+		this._suppressSimulationWindowUpdate = false
 
 		this.summon({ lanes: [4], segments: ['all'] })
 
@@ -54,10 +57,13 @@ export class Simulation {
 		this.rebuildMarks()
 
 		this.passState = { possible: false, passerId: null, receiverId: null }
+		this.recording = this.createRecordingState()
+		this.frameEventLog = []
 
 		this.history = []
 		this.maxHistory = 60 * 60 * 10
 		this.refreshAllRunnerKinematics()
+		this.updateSimulationCallWindow()
 		this.pushHistory()
 		this.failureMessage = ''
 	}
@@ -102,6 +108,43 @@ export class Simulation {
 			{ start: 180, end: 210 },
 			{ start: 280, end: 310 },
 		]
+	}
+
+	createRecordingState() {
+		return {
+			active: false,
+			baseFileStem: '',
+			targetLane: null,
+			segments: [],
+			completedFiles: [],
+			outputDirectoryHandle: null,
+			saveMode: 'download',
+		}
+	}
+
+	createSimulationStudyState() {
+		return {
+			enabled: false,
+			receiverStartTime: 7.4,
+			callTimeMin: 7.4,
+			callTimeMax: 7.4,
+			stepSeconds: 1 / 60,
+			running: false,
+		}
+	}
+
+	logFrameEvent(type, lane, passerLeg) {
+		this.frameEventLog.push({ type, lane, passerLeg })
+	}
+
+	consumeFrameEventsForSegment(segment) {
+		const events = new Set()
+		for (const entry of this.frameEventLog) {
+			if (entry.lane !== this.recording.targetLane) continue
+			if (entry.passerLeg !== segment.passerLeg) continue
+			events.add(entry.type)
+		}
+		return events
 	}
 
 	getBatonForLane(lane) {
@@ -173,8 +216,89 @@ export class Simulation {
 
 		this.history = []
 		if (this.game) this.game.reset()
+		this.recording = this.createRecordingState()
 		this.refreshAllRunnerKinematics()
+		if (!this._suppressSimulationWindowUpdate) {
+			this.updateSimulationCallWindow()
+		}
 		this.pushHistory()
+	}
+
+	getRecordingButtonLabel() {
+		return this.recording.active ? '■ Stop Recording' : '● Start Recording'
+	}
+
+	async toggleRecording() {
+		if (this.recording.active) {
+			await this.stopRecording({ auto: false })
+			return
+		}
+		await this.startRecording()
+	}
+
+	async startRecording() {
+		const outputDirectoryHandle = await pickRecordingOutputDirectory()
+		if (outputDirectoryHandle === RECORDING_PICKER_CANCELLED) {
+			return false
+		}
+
+		this.resetRace()
+
+		const targetLane = this.game?.playerLane ?? this.runners[0]?.lane ?? null
+		const segments = this.buildRecordingSegments(targetLane)
+		if (segments.length === 0) return false
+
+		this.recording = {
+			active: true,
+			baseFileStem: buildRecordingBaseFileStem(new Date(), targetLane),
+			targetLane,
+			segments,
+			completedFiles: [],
+			outputDirectoryHandle,
+			saveMode: outputDirectoryHandle ? 'directory' : 'download',
+		}
+
+		this.captureRecordingFrame()
+		this.player.paused = false
+		return true
+	}
+
+	async stopRecording({ auto = false } = {}) {
+		if (!this.recording.active) return
+
+		this.player.paused = true
+		const files = this.recording.completedFiles.concat(
+			this.recording.segments
+				.filter((segment) => segment.rows.length > 0 && !segment.finished)
+				.map((segment) => this.buildRecordingFile(segment)),
+		)
+
+		await saveRecordingFiles(files, this.recording)
+
+		this.recording = this.createRecordingState()
+		this.player.paused = true
+		if (auto) {
+			// no-op: explicit flag preserved mainly for future HUD/messages
+		}
+	}
+
+	buildRecordingSegments(targetLane) {
+		const availableLegs = new Set(this.runners.filter((runner) => runner.lane === targetLane).map((runner) => runner.leg))
+		const segmentDefs = [
+			{ key: '12', passerLeg: 1, receiverLeg: 2 },
+			{ key: '23', passerLeg: 2, receiverLeg: 3 },
+			{ key: '34', passerLeg: 3, receiverLeg: 4 },
+		]
+
+		return segmentDefs
+			.filter((def) => availableLegs.has(def.passerLeg) && availableLegs.has(def.receiverLeg))
+			.map((def) => ({
+				...def,
+				active: def.passerLeg === 1,
+				finished: false,
+				rows: [],
+				flags: createRecordingEventFlags(),
+			}))
 	}
 
 	refreshAllRunnerKinematics({ dt = 1 / 60, commitTauState = false } = {}) {
@@ -243,6 +367,7 @@ export class Simulation {
 			const ctx = this.getPasserStrideInterpersonalContext(passer, receiver, dt)
 			if (ctx.waitCueActive && !passer.waitCueActive) {
 				passer.waitCueUntilMs = performance.now() + Simulation.WAIT_CUE_MS
+				this.logFrameEvent('e4b', passer.lane, passer.leg)
 			}
 
 			passer.waitCueActive = ctx.waitCueActive
@@ -263,7 +388,9 @@ export class Simulation {
 				activeReceiverIds.add(receiver.id)
 				if (ctx.activateReceiverBrake) {
 					receiver.receiverBrakeActive = true
-					receiver.enterReceiveReady()
+					if (receiver.enterReceiveReady()) {
+						this.logFrameEvent('e5', passer.lane, passer.leg)
+					}
 				}
 			}
 
@@ -522,6 +649,337 @@ export class Simulation {
 			}))
 	}
 
+	captureRecordingFrame() {
+		if (!this.recording.active) return
+
+		const targetLane = this.recording.targetLane
+		let allFinished = true
+
+		for (const segment of this.recording.segments) {
+			if (segment.finished) continue
+
+			const passer = this.runners.find((runner) => runner.lane === targetLane && runner.leg === segment.passerLeg) || null
+			const receiver = this.runners.find((runner) => runner.lane === targetLane && runner.leg === segment.receiverLeg) || null
+			if (!passer || !receiver) {
+				segment.finished = true
+				continue
+			}
+
+			const baton = this.getBatonForLane(targetLane)
+			const holderId = baton?.holderId ?? null
+
+			if (!segment.active) {
+				segment.active = holderId === passer.id
+			}
+
+			if (!segment.active) {
+				allFinished = false
+				continue
+			}
+
+			const frameFlags = this.computeRecordingFrameFlags(segment, passer, receiver, holderId)
+			mergeRecordingEventFlags(segment.flags, frameFlags)
+			segment.rows.push(this.buildRecordingRow(segment, passer, receiver))
+
+			if (segment.flags.e8) {
+				segment.finished = true
+				this.recording.completedFiles.push(this.buildRecordingFile(segment))
+			} else {
+				allFinished = false
+			}
+		}
+
+		if (allFinished) {
+			void this.stopRecording({ auto: true })
+		}
+	}
+
+	computeRecordingFrameFlags(segment, passer, receiver, holderId) {
+		const frameEvents = this.consumeFrameEventsForSegment(segment)
+		const gamePair =
+			this.game?.enabled && this.game.playerLane === this.recording.targetLane
+				? this.game.getPR()
+				: { P: null, R: null }
+		const isCurrentGamePair = gamePair.P?.id === passer.id && gamePair.R?.id === receiver.id
+
+		const e2 = frameEvents.has('e2') || receiver._is_running
+		const e4a = frameEvents.has('e4a') || (isCurrentGamePair ? this.game.called || this.game.pStage >= 1 : false)
+		const e4b = frameEvents.has('e4b') || passer.waitCueActive || passer.waitCueUntilMs > performance.now()
+		const e5 = frameEvents.has('e5') || receiver._is_receive_ready
+		const e6 = frameEvents.has('e6') || passer._is_offer_pose || (isCurrentGamePair && this.game.pStage >= 2)
+		const e7 = frameEvents.has('e7') || (isCurrentGamePair && this.game.rStage >= 3) || holderId === receiver.id
+		const e8 = frameEvents.has('e8') || holderId === receiver.id
+
+		return { e2, e4a, e4b, e5, e6, e7, e8 }
+	}
+
+	buildRecordingRow(segment, passer, receiver) {
+		return {
+			t: this.t,
+			xP: passer.dist,
+			xR: receiver.dist,
+			vP: passer.speed(),
+			vR: receiver.speed(),
+			phiP: passer.phase,
+			phiR: receiver.phase,
+			F_intra: omegaToPitchPerSecond(passer.individualOmegaComponent),
+			F_inter: omegaToPitchPerSecond(passer.interpersonalOmegaComponent),
+			L_intra: passer.individualStrideComponent,
+			L_inter: passer.interpersonalStrideFactor,
+			tauDotPR: passer.tauToReceiverRate,
+			tauPR: passer.tauToReceiver,
+			tauRB: passer.tauToZoneEnd,
+			e2: segment.flags.e2 ? 1 : 0,
+			e4a: segment.flags.e4a ? 1 : 0,
+			e4b: segment.flags.e4b ? 1 : 0,
+			e5: segment.flags.e5 ? 1 : 0,
+			e6: segment.flags.e6 ? 1 : 0,
+			e7: segment.flags.e7 ? 1 : 0,
+			e8: segment.flags.e8 ? 1 : 0,
+		}
+	}
+
+	buildRecordingFile(segment) {
+		return {
+			name: `${this.recording.baseFileStem}_${segment.key}.csv`,
+			csv: serializeRecordingRows(segment.rows),
+		}
+	}
+
+	getSimulationStudyButtonLabel() {
+		return this.simulationStudy.running ? 'Running...' : 'Run Simulation'
+	}
+
+	updateSimulationCallWindow() {
+		if (this._updatingSimulationWindow) {
+			return {
+				min: this.simulationStudy.callTimeMin,
+				max: this.simulationStudy.callTimeMax,
+			}
+		}
+
+		this._updatingSimulationWindow = true
+		try {
+			const min = Math.max(0.0, Number(this.simulationStudy.receiverStartTime) || 0.0)
+			let max = min
+
+			try {
+				const estimated = this.estimateSimulationCallUpperBound(min)
+				if (Number.isFinite(estimated) && estimated >= min) {
+					max = estimated
+				}
+			} catch (_error) {
+				max = min
+			}
+
+			this.simulationStudy.receiverStartTime = min
+			this.simulationStudy.callTimeMin = min
+			this.simulationStudy.callTimeMax = max
+			return { min, max }
+		} finally {
+			this._updatingSimulationWindow = false
+		}
+	}
+
+	estimateSimulationCallUpperBound(receiverStartTime, dtBase = 1 / 60) {
+		return this.withPreservedState(() => {
+			if (!this.prepareSimulationStudyRun()) return receiverStartTime
+
+			const maxSimTime = Math.max(20, receiverStartTime + 12)
+			let receiverStarted = false
+
+			while (this.t <= maxSimTime && !this.failureMessage) {
+				if (!receiverStarted && this.t + 1e-9 >= receiverStartTime) {
+					const { P, R } = this.game.getPR()
+					if (P && R && this.game.startReceiver(P, R)) {
+						receiverStarted = true
+					}
+				}
+
+				this.stepFrame(dtBase)
+			}
+
+			return this.t
+		})
+	}
+
+	async runSimulationStudy() {
+		if (this.simulationStudy.running) return false
+
+		const outputDirectoryHandle = await pickRecordingOutputDirectory()
+		if (outputDirectoryHandle === RECORDING_PICKER_CANCELLED) {
+			return false
+		}
+
+		this.simulationStudy.running = true
+		try {
+			const { min, max } = this.updateSimulationCallWindow()
+			const rows = this.executeSimulationStudyRows({
+				receiverStartTime: min,
+				callTimeMax: max,
+				dtBase: this.simulationStudy.stepSeconds,
+			})
+
+			const lane = this.game?.playerLane ?? this.runners[0]?.lane ?? 0
+			const file = {
+				name: `${buildSimulationBaseFileStem(new Date(), lane)}.csv`,
+				csv: serializeSimulationStudyRows(rows),
+			}
+
+			await saveRecordingFiles(
+				[file],
+				{
+					saveMode: outputDirectoryHandle ? 'directory' : 'download',
+					outputDirectoryHandle,
+				},
+			)
+			return true
+		} finally {
+			this.simulationStudy.running = false
+		}
+	}
+
+	executeSimulationStudyRows({ receiverStartTime, callTimeMax, dtBase }) {
+		const step = Math.max(1 / 240, dtBase || 1 / 60)
+		const rows = []
+
+		for (let callTime = receiverStartTime; callTime <= callTimeMax + 1e-9; callTime += step) {
+			rows.push(this.simulateScheduledCallTrial({
+				receiverStartTime,
+				callTime: roundSimulationTime(callTime),
+				dtBase: step,
+			}))
+		}
+
+		if (rows.length === 0) {
+			rows.push(
+				this.simulateScheduledCallTrial({
+					receiverStartTime,
+					callTime: receiverStartTime,
+					dtBase: step,
+				}),
+			)
+		}
+
+		return rows
+	}
+
+	simulateScheduledCallTrial({ receiverStartTime, callTime, dtBase }) {
+		return this.withPreservedState(() => {
+			const prepared = this.prepareSimulationStudyRun()
+			if (!prepared) {
+				return {
+					scheduledE2Time: receiverStartTime,
+					scheduledE4aTime: callTime,
+					result: 'missing-player-pair',
+					e4a: null,
+					e6: null,
+				}
+			}
+
+			const maxSimTime = Math.max(20, callTime + 8, receiverStartTime + 12)
+			let receiverStarted = false
+			let called = false
+			let e4aSnapshot = null
+			let e6Snapshot = null
+
+			while (this.t <= maxSimTime && !this.failureMessage && !e6Snapshot) {
+				let pair = this.game.getPR()
+
+				if (!receiverStarted && this.t + 1e-9 >= receiverStartTime) {
+					if (pair.P && pair.R && this.game.startReceiver(pair.P, pair.R)) {
+						receiverStarted = true
+					}
+				}
+
+				pair = this.game.getPR()
+				if (receiverStarted && !called && this.t + 1e-9 >= callTime) {
+					if (pair.P && pair.R) {
+						this.game.call(pair.P, pair.R)
+						if (this.game.called) {
+							called = true
+							e4aSnapshot = this.buildSimulationEventSnapshot(pair.P, pair.R)
+						}
+					}
+				}
+
+				this.stepFrame(dtBase)
+
+				pair = this.game.getPR()
+				if (!e6Snapshot && this.game.pStage >= 2 && pair.P && pair.R) {
+					e6Snapshot = this.buildSimulationEventSnapshot(pair.P, pair.R)
+				}
+			}
+
+			return {
+				scheduledE2Time: receiverStartTime,
+				scheduledE4aTime: callTime,
+				result: e6Snapshot ? 'offered' : this.failureMessage || 'timeout',
+				e4a: e4aSnapshot,
+				e6: e6Snapshot,
+			}
+		})
+	}
+
+	buildSimulationEventSnapshot(passer, receiver) {
+		return {
+			t: this.t,
+			X_P: passer.dist,
+			X_R: receiver.dist,
+			v_P: passer.speed(),
+			v_R: receiver.speed(),
+			phi_P: passer.phase,
+			phi_R: receiver.phase,
+			F_intra: omegaToPitchPerSecond(passer.individualOmegaComponent),
+			F_inter: omegaToPitchPerSecond(passer.interpersonalOmegaComponent),
+			L_intra: passer.individualStrideComponent,
+			L_inter: passer.interpersonalStrideFactor,
+			tauDotPR: passer.tauToReceiverRate,
+			tauPR: passer.tauToReceiver,
+			tauRB: passer.tauToZoneEnd,
+		}
+	}
+
+	prepareSimulationStudyRun() {
+		this._suppressSimulationWindowUpdate = true
+		try {
+			this.resetRace()
+		} finally {
+			this._suppressSimulationWindowUpdate = false
+		}
+		this.player.speed = 1.0
+		this.player.paused = true
+		this.failureMessage = ''
+		this.frameEventLog = []
+		if (this.game) {
+			this.game.enabled = true
+			this.game.reset()
+		}
+
+		const { P, R } = this.game?.getPR?.() ?? { P: null, R: null }
+		return Boolean(P && R)
+	}
+
+	withPreservedState(callback) {
+		const snapshot = structuredClone(this.snapshot())
+		const history = structuredClone(this.history)
+		const frameEventLog = structuredClone(this.frameEventLog)
+		const recording = this.recording
+		const gameEnabled = this.game?.enabled ?? true
+
+		try {
+			return callback()
+		} finally {
+			this.applyState(snapshot)
+			if (this.game) {
+				this.game.enabled = gameEnabled
+			}
+			this.history = history
+			this.frameEventLog = frameEventLog
+			this.recording = recording
+		}
+	}
+
 	isRunnerInZone(runner, zone) {
 		return zone.start <= runner.dist && runner.dist <= zone.end
 	}
@@ -627,6 +1085,8 @@ export class Simulation {
 		}
 
 		this.refreshAllRunnerKinematics({ dt: dtBase * sp, commitTauState: true })
+		this.captureRecordingFrame()
+		this.frameEventLog = []
 		this.pushHistory()
 	}
 
@@ -679,6 +1139,7 @@ export class Simulation {
 			})),
 			game: this.game
 				? {
+						enabled: this.game.enabled,
 						playerLane: this.game.playerLane,
 						pStage: this.game.pStage,
 						rStage: this.game.rStage,
@@ -687,6 +1148,7 @@ export class Simulation {
 						_prevPId: this.game._prevPId,
 						_prevRPhase: this.game._prevRPhase,
 						canOfferNow: this.game.canOfferNow,
+						successMessage: this.game.successMessage,
 					}
 				: null,
 			interpersonal: {
@@ -725,6 +1187,7 @@ export class Simulation {
 		this.batons = st.batons.map((b) => new Baton(b))
 
 		if (this.game && st.game) {
+			this.game.enabled = st.game.enabled ?? this.game.enabled
 			this.game.playerLane = st.game.playerLane
 			this.game.pStage = st.game.pStage
 			this.game.rStage = st.game.rStage
@@ -733,6 +1196,7 @@ export class Simulation {
 			this.game._prevPId = st.game._prevPId
 			this.game._prevRPhase = st.game._prevRPhase
 			this.game.canOfferNow = st.game.canOfferNow
+			this.game.successMessage = st.game.successMessage ?? false
 		}
 		this.failureMessage = st.failureMessage ?? ''
 	}
@@ -795,8 +1259,186 @@ export class Simulation {
 
 		this.game?.reset()
 		this.refreshAllRunnerKinematics({ commitTauState: true })
+		this.recording = this.createRecordingState()
+		if (!this._suppressSimulationWindowUpdate) {
+			this.updateSimulationCallWindow()
+		}
 
 		this.history = []
 		this.pushHistory()
+	}
+}
+
+function createRecordingEventFlags() {
+	return {
+		e2: false,
+		e4a: false,
+		e4b: false,
+		e5: false,
+		e6: false,
+		e7: false,
+		e8: false,
+	}
+}
+
+function mergeRecordingEventFlags(target, source) {
+	for (const key of Object.keys(target)) {
+		target[key] = target[key] || Boolean(source[key])
+	}
+}
+
+function omegaToPitchPerSecond(omega) {
+	return omega / Math.PI
+}
+
+function buildRecordingBaseFileStem(date, lane) {
+	const pad2 = (value) => String(value).padStart(2, '0')
+	const timestamp = `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}_${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`
+	return `relay_record_lane${lane}_${timestamp}`
+}
+
+function buildSimulationBaseFileStem(date, lane) {
+	const pad2 = (value) => String(value).padStart(2, '0')
+	const timestamp = `${date.getFullYear()}${pad2(date.getMonth() + 1)}${pad2(date.getDate())}_${pad2(date.getHours())}${pad2(date.getMinutes())}${pad2(date.getSeconds())}`
+	return `relay_simulation_lane${lane}_${timestamp}`
+}
+
+function serializeRecordingRows(rows) {
+	const header = ['t', 'xP', 'xR', 'vP', 'vR', 'phiP', 'phiR', 'F^intra', 'F^inter', 'L^intra', 'L^inter', 'tauドットPR', 'tauPR', 'tauRB', 'e2', 'e4a', 'e4b', 'e5', 'e6', 'e7', 'e8']
+	const lines = [header.join(',')]
+	for (const row of rows) {
+		lines.push(
+			[
+				row.t,
+				row.xP,
+				row.xR,
+				row.vP,
+				row.vR,
+				row.phiP,
+				row.phiR,
+				row.F_intra,
+				row.F_inter,
+				row.L_intra,
+				row.L_inter,
+				row.tauDotPR,
+				row.tauPR,
+				row.tauRB,
+				row.e2,
+				row.e4a,
+				row.e4b,
+				row.e5,
+				row.e6,
+				row.e7,
+				row.e8,
+			]
+				.map(formatCsvValue)
+				.join(','),
+		)
+	}
+	return lines.join('\n')
+}
+
+function serializeSimulationStudyRows(rows) {
+	const eventColumns = [
+		['t', 't'],
+		['X_P', 'X_P'],
+		['X_R', 'X_R'],
+		['v_P', 'v_P'],
+		['v_R', 'v_R'],
+		['phi_P', 'phi_P'],
+		['phi_R', 'phi_R'],
+		['F^intra', 'F_intra'],
+		['F^inter', 'F_inter'],
+		['L^intra', 'L_intra'],
+		['L^inter', 'L_inter'],
+		['tauドットPR', 'tauDotPR'],
+		['tauPR', 'tauPR'],
+		['tauRB', 'tauRB'],
+	]
+	const header = ['scheduled_e2_time', 'scheduled_e4a_time', 'result']
+	for (const prefix of ['e4a', 'e6']) {
+		for (const [label] of eventColumns) {
+			header.push(`${prefix}_${label}`)
+		}
+	}
+
+	const lines = [header.join(',')]
+	for (const row of rows) {
+		const values = [row.scheduledE2Time, row.scheduledE4aTime, row.result]
+		for (const eventRow of [row.e4a, row.e6]) {
+			for (const [, key] of eventColumns) {
+				values.push(eventRow?.[key] ?? null)
+			}
+		}
+		lines.push(values.map(formatCsvValue).join(','))
+	}
+
+	return lines.join('\n')
+}
+
+function roundSimulationTime(value) {
+	return Math.round(value * 1000) / 1000
+}
+
+function formatCsvValue(value) {
+	if (value === null || value === undefined) return ''
+	if (value === Infinity) return 'Infinity'
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value)) return ''
+		return String(value)
+	}
+	const text = String(value)
+	return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
+}
+
+function downloadCsvFile(filename, csvText) {
+	if (typeof document === 'undefined') return
+	const blob = new Blob([`\uFEFF${csvText}`], { type: 'text/csv;charset=utf-8' })
+	const url = URL.createObjectURL(blob)
+	const link = document.createElement('a')
+	link.href = url
+	link.download = filename
+	link.style.display = 'none'
+	document.body?.appendChild?.(link)
+	link.click()
+	link.remove?.()
+	setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+const RECORDING_PICKER_CANCELLED = Symbol('recording-picker-cancelled')
+
+async function pickRecordingOutputDirectory() {
+	if (typeof window === 'undefined' || typeof window.showDirectoryPicker !== 'function') {
+		return null
+	}
+
+	try {
+		return await window.showDirectoryPicker({ mode: 'readwrite' })
+	} catch (error) {
+		if (error?.name === 'AbortError') {
+			return RECORDING_PICKER_CANCELLED
+		}
+		console.warn('Failed to pick recording output directory; falling back to browser download.', error)
+		return null
+	}
+}
+
+async function saveRecordingFiles(files, recordingState) {
+	if (recordingState.saveMode === 'directory' && recordingState.outputDirectoryHandle) {
+		try {
+			for (const file of files) {
+				const fileHandle = await recordingState.outputDirectoryHandle.getFileHandle(file.name, { create: true })
+				const writable = await fileHandle.createWritable()
+				await writable.write(`\uFEFF${file.csv}`)
+				await writable.close()
+			}
+			return
+		} catch (error) {
+			console.warn('Failed to save recording files to the selected directory; falling back to browser download.', error)
+		}
+	}
+
+	for (const file of files) {
+		downloadCsvFile(file.name, file.csv)
 	}
 }

@@ -5,6 +5,8 @@ import { buildGUI } from './gui.js'
 let view
 let sim
 let gui
+let rebuildGuiRef
+let lastRecordingActive = false
 
 let cameraState;
 let hudState;
@@ -34,7 +36,7 @@ function setup() {
 		zoomZone34: () => zoomToZoneIndex(2),
 	}
 	cameraState = {
-		followBaton: false,
+		followBaton: true,
 		followZoom: 2.6,
 	}
 	hudState = {
@@ -45,6 +47,8 @@ function setup() {
 		if (gui) gui.destroy()
 		gui = buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui)
 	}
+	rebuildGuiRef = rebuildGui
+	lastRecordingActive = sim.recording.active
 	rebuildGui()
 
 	window.addEventListener('keydown', onKeyDown, { passive: false })
@@ -150,6 +154,7 @@ function buildHUDHeaderLines() {
 		{ text: `t=${sim.t.toFixed(2)} s  |  speed=x${sim.player.speed.toFixed(1)}  |  state=${stateLabel}`, color: [220, 220, 220] },
 		{ text: `player=${playerTeam}  |  summoned=${summonedTeams || '-'}`, color: [180, 210, 255] },
 		{ text: `mode=${sim.game?.enabled ? 'game' : 'non-game'}  |  sync=${sim.interpersonal.enabled ? 'on' : 'off'}`, color: [170, 235, 210] },
+		{ text: `recording=${sim.recording.active ? 'on' : 'off'}`, color: sim.recording.active ? [255, 140, 140] : [170, 170, 170] },
 	]
 
 	if (sim.failureMessage) {
@@ -286,6 +291,10 @@ function draw() {
 	background(15)
 
 	sim.step(1 / 60)
+	if (rebuildGuiRef && sim.recording.active !== lastRecordingActive) {
+		lastRecordingActive = sim.recording.active
+		rebuildGuiRef()
+	}
 	if (cameraState.followBaton && sim.game?.enabled) {
 		const baton = sim.getBatonForLane(sim.game.playerLane)
 		if (baton) {

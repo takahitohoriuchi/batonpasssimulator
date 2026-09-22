@@ -22,6 +22,7 @@ export class InteractionController {
 			const triggerRaceDist = sim.getStartTriggerRaceDist(receiver)
 			if (!receiver._is_running && sim.didRunnerCrossRaceDist(passer, triggerRaceDist)) {
 				receiver.go()
+				sim.logFrameEvent('e2', passer.lane, passer.leg)
 			}
 
 			const gap = sim.shortestRaceDistanceMeters(passer.dist, receiver.dist)
@@ -31,7 +32,9 @@ export class InteractionController {
 			const forcedWaitReady = receiver.receiverBrakeActive
 
 			if (shouldRaiseArm || forcedWaitReady) {
-				receiver.enterReceiveReady()
+				if (receiver.enterReceiveReady()) {
+					sim.logFrameEvent('e5', passer.lane, passer.leg)
+				}
 			} else if (receiver._is_receive_ready) {
 				receiver.exitReceiveReady()
 			}
@@ -48,7 +51,11 @@ export class InteractionController {
 			latestReceiverId = receiver.id
 			anyPossible = true
 
-			passer.enterOfferPose()
+			if (passer.enterOfferPose()) {
+				sim.logFrameEvent('e6', passer.lane, passer.leg)
+			}
+			sim.logFrameEvent('e7', passer.lane, passer.leg)
+			sim.logFrameEvent('e8', passer.lane, passer.leg)
 			baton.attachTo(receiver)
 			passer.stop()
 			passer.exitOfferPose()

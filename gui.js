@@ -30,6 +30,17 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	play
 		.add(
 			{
+				toggleRecording: async () => {
+					await sim.toggleRecording()
+					rebuildGui()
+				},
+			},
+			'toggleRecording',
+		)
+		.name(sim.getRecordingButtonLabel())
+	play
+		.add(
+			{
 				restartRace: () => {
 					sim.resetRace()
 				},
@@ -53,6 +64,45 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 			sim.game.enabled = v
 			rebuildGui()
 		})
+
+	const simulationFolder = addStyledFolder(gui, 'Simulation Mode', 0)
+	simulationFolder
+		.add(sim.simulationStudy, 'enabled')
+		.name('Enable Simulation')
+		.onChange((enabled) => {
+			sim.simulationStudy.enabled = enabled
+			if (enabled) {
+				sim.updateSimulationCallWindow()
+			}
+			rebuildGui()
+		})
+
+	if (sim.simulationStudy.enabled) {
+		simulationFolder
+			.add(sim.simulationStudy, 'receiverStartTime', 0.0, 20.0, 0.01)
+			.name('R start time (s)')
+			.onChange(() => {
+				sim.updateSimulationCallWindow()
+			})
+
+		const minCtrl = simulationFolder.add(sim.simulationStudy, 'callTimeMin').name('Call min (s)').listen()
+		const maxCtrl = simulationFolder.add(sim.simulationStudy, 'callTimeMax').name('Call max (s)').listen()
+		lockDisplayController(minCtrl)
+		lockDisplayController(maxCtrl)
+
+		simulationFolder
+			.add(
+				{
+					runSimulation: async () => {
+						await sim.runSimulationStudy()
+						sim.updateSimulationCallWindow()
+						rebuildGui()
+					},
+				},
+				'runSimulation',
+			)
+			.name(sim.getSimulationStudyButtonLabel())
+	}
 
 	// ===== Runner Summon =====
 	const summon = {
@@ -231,6 +281,14 @@ export function buildGUI(sim, cameraApi, cameraState, hudState, rebuildGui) {
 	}
 
 	return gui
+}
+
+function lockDisplayController(controller) {
+	const input = controller.domElement?.querySelector?.('input')
+	if (input) {
+		input.setAttribute('readonly', 'true')
+		input.tabIndex = -1
+	}
 }
 
 function applyFolderDepthStyle(folder, depth) {
